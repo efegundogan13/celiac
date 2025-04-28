@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Profilim{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-green-700 mb-8">Profilim</h1>
+
+  <!-- Favori Restoranlar -->
+  <div class="mb-10">
+    <h2 class="text-2xl font-semibold text-green-700 mb-4">Favori Restoranlarım</h2>
+    {% if favorite_restaurants %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for fav in favorite_restaurants %}
+          <div class="bg-white p-4 rounded shadow hover:shadow-md transition">
+            <h3 class="text-lg font-bold">{{ fav.restaurant.name }}</h3>
+            <p class="text-gray-600 text-sm mt-1">{{ fav.restaurant.city }}</p>
+            <a href="{{ url_for('restaurant_detail', id=fav.restaurant.id) }}" class="text-green-600 hover:underline text-sm mt-2 block">Detayları Gör</a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-600 text-sm">Henüz favori restoranınız yok.</p>
+    {% endif %}
+  </div>
+
+  <!-- Favori Ürünler -->
+  <div class="mb-10">
+    <h2 class="text-2xl font-semibold text-green-700 mb-4">Favori Ürünlerim</h2>
+    {% if favorite_products %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for fav in favorite_products %}
+          <div class="bg-white p-4 rounded shadow hover:shadow-md transition">
+            <h3 class="text-lg font-bold">{{ fav.product.name }}</h3>
+            <p class="text-gray-600 text-sm mt-1">{{ fav.product.category }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-600 text-sm">Henüz favori ürününüz yok.</p>
+    {% endif %}
+  </div>
+
+  <!-- Yazdığım Yorumlar -->
+  <div>
+    <h2 class="text-2xl font-semibold text-green-700 mb-4">Yazdığım Yorumlar</h2>
+    {% if user_comments %}
+      <div class="space-y-4">
+        {% for comment in user_comments %}
+          <div class="bg-white p-4 rounded shadow hover:shadow-md transition">
+            <h3 class="text-lg font-bold">{{ comment.restaurant.name }}</h3>
+            <p class="text-yellow-500">
+              {% for i in range(comment.rating) %}★{% endfor %}
+              {% for i in range(5 - comment.rating) %}☆{% endfor %}
+            </p>
+            <p class="text-gray-700 mt-2">{{ comment.text }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+            <a href="{{ url_for('restaurant_detail', id=comment.restaurant.id) }}" class="text-green-600 hover:underline text-sm mt-2 block">Restoranı Gör</a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-600 text-sm">Henüz yorum yapmadınız.</p>
+    {% endif %}
+  </div>
+
+{% endblock %}

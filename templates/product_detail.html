@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} | Glutensiz Yaşam{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-green-700 mb-6">{{ product.name }}</h1>
+
+  <div class="bg-white p-6 rounded shadow mb-8">
+    <div class="bg-white flex justify-center items-center rounded mb-4 w-full h-64">
+      <img src="{{ product.image_url }}" class="h-full object-contain" alt="{{ product.name }}">
+    </div>
+
+    <p class="text-gray-600 mb-2">{{ product.category }}</p>
+
+    {% if product.restaurant %}
+      <p class="text-sm text-gray-500 mb-2">📍 Restoran: {{ product.restaurant.name }}</p>
+    {% endif %}
+
+    <p class="text-gray-700">{{ product.description }}</p>
+  </div>
+
+  <!-- Yorum Yapma Formu -->
+  {% if session.get('user_id') %}
+    <div class="mt-10">
+      <h2 class="text-2xl font-bold text-green-700 mb-4">Yorum Yap ve Puan Ver</h2>
+      <form method="POST" action="{{ url_for('add_product_comment', product_id=product.id) }}" class="space-y-4">
+        <textarea name="text" class="w-full p-3 border rounded" placeholder="Yorumunuzu yazın..." required></textarea>
+
+        <select name="rating" class="w-full p-3 border rounded" required>
+          <option value="">Puan Ver</option>
+          <option value="5">5 - Mükemmel</option>
+          <option value="4">4 - Çok İyi</option>
+          <option value="3">3 - İyi</option>
+          <option value="2">2 - Kötü</option>
+          <option value="1">1 - Berbat</option>
+        </select>
+
+        <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">Gönder</button>
+      </form>
+    </div>
+  {% else %}
+    <p class="mt-4 text-sm text-gray-600">Yorum yapabilmek için <a href="/login" class="text-green-700 hover:underline">giriş yap</a>.</p>
+  {% endif %}
+
+  <!-- Yorumlar Listesi -->
+  <div class="mt-10">
+    <h2 class="text-2xl font-bold text-green-700 mb-4">Yorumlar</h2>
+
+    {% if comments %}
+      {% for comment in comments %}
+        <div class="bg-white p-4 rounded shadow mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-semibold">{{ comment.user.username }}</span>
+            <span class="text-yellow-500">
+              {% for i in range(comment.rating) %}★{% endfor %}
+              {% for i in range(5 - comment.rating) %}☆{% endfor %}
+            </span>
+          </div>
+
+          <p class="text-gray-700">{{ comment.text }}</p>
+          <p class="text-xs text-gray-400">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+
+          {% if session.get('user_id') == comment.user_id %}
+            <form action="{{ url_for('delete_product_comment', comment_id=comment.id) }}" method="POST" class="mt-2">
+              <button type="submit" class="text-red-600 hover:underline text-sm">Sil</button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-sm text-gray-600">Henüz yorum yapılmadı.</p>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Yönetim Paneli{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-green-700 mb-8">Yönetim Paneli</h1>
+
+  <!-- İstatistik Kartları -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-10">
+    <div class="bg-white p-4 shadow rounded text-center">
+      <h2 class="text-2xl font-bold">{{ user_count }}</h2>
+      <p class="text-gray-600 text-sm">Kullanıcı</p>
+    </div>
+    <div class="bg-white p-4 shadow rounded text-center">
+      <h2 class="text-2xl font-bold">{{ restaurant_count }}</h2>
+      <p class="text-gray-600 text-sm">Restoran</p>
+    </div>
+    <div class="bg-white p-4 shadow rounded text-center">
+      <h2 class="text-2xl font-bold">{{ product_count }}</h2>
+      <p class="text-gray-600 text-sm">Ürün</p>
+    </div>
+    <div class="bg-white p-4 shadow rounded text-center">
+      <h2 class="text-2xl font-bold">{{ comment_count }}</h2>
+      <p class="text-gray-600 text-sm">Yorum</p>
+    </div>
+  </div>
+
+  <!-- Yönetim Linkleri -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+    <a href="/admin/add-restaurant" class="bg-white p-6 shadow rounded hover:shadow-md transition">
+      <h2 class="text-xl font-semibold text-green-700">➕ Restoran Ekle</h2>
+      <p class="text-sm text-gray-600">Yeni glutensiz restoran ekleyin</p>
+    </a>
+
+    <a href="/admin/add-product" class="bg-white p-6 shadow rounded hover:shadow-md transition">
+      <h2 class="text-xl font-semibold text-green-700">➕ Ürün Ekle</h2>
+      <p class="text-sm text-gray-600">Yeni glutensiz ürün ekleyin</p>
+    </a>
+
+    <a href="/admin/add-category" class="bg-white p-6 shadow rounded hover:shadow-md transition">
+      <h2 class="text-xl font-semibold text-green-700">📂 Kategori Ekle</h2>
+      <p class="text-sm text-gray-600">Yeni bir blog kategorisi oluşturun</p>
+    </a>
+
+    <a href="/admin/add-blog" class="bg-white p-6 shadow rounded hover:shadow-md transition">
+      <h2 class="text-xl font-semibold text-green-700">📝 Blog Yazısı Ekle</h2>
+      <p class="text-sm text-gray-600">Yeni bir blog yazısı ekleyin</p>
+    </a>
+
+    <a href="/restaurants" class="bg-white p-6 shadow rounded hover:shadow-md transition">
+      <h2 class="text-xl font-semibold text-green-700">📍 Restoranlar</h2>
+      <p class="text-sm text-gray-600">Tüm restoranları görüntüleyin</p>
+    </a>
+
+    <a href="/products" class="bg-white p-6 shadow rounded hover:shadow-md transition">
+      <h2 class="text-xl font-semibold text-green-700">📦 Ürünler</h2>
+      <p class="text-sm text-gray-600">Tüm ürünleri görüntüleyin</p>
+    </a>
+  </div>
+{% endblock %}

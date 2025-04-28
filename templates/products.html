@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Ürünler{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-green-700 mb-6">Glutensiz Ürünler</h1>
+
+  <!-- Filtre Formu -->
+  <form method="GET" class="bg-white p-4 rounded shadow mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label for="category" class="block text-sm font-semibold text-gray-700 mb-1">Kategori</label>
+      <select name="category" id="category" class="w-full p-2 border rounded">
+        <option value="">Tüm Kategoriler</option>
+        {% for cat in categories %}
+          <option value="{{ cat[0] }}" {% if request.args.get('category') == cat[0] %}selected{% endif %}>{{ cat[0] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex items-end">
+      <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800 w-full">
+        Filtrele
+      </button>
+    </div>
+  </form>
+
+  <!-- Ürün Kartları -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for p in products %}
+      <div class="bg-white p-4 rounded shadow hover:shadow-md transition">
+        <div class="bg-white flex justify-center items-center rounded mb-3 h-40 w-full">
+          <img src="{{ p.image_url }}" class="h-full object-contain" alt="{{ p.name }}">
+        </div>
+
+        <h2 class="text-xl font-bold text-green-700">{{ p.name }}</h2>
+        <p class="text-gray-600">{{ p.category }}</p>
+
+        {% if p.restaurant %}
+          <p class="text-sm text-gray-500 mt-1">
+            📍 Restoran: <span class="font-semibold">{{ p.restaurant.name }}</span>
+          </p>
+        {% endif %}
+
+        <p class="text-sm text-gray-500 mt-2">{{ p.description }}</p>
+
+        <a href="/products/{{ p.id }}" class="text-green-600 text-sm mt-2 inline-block hover:underline">
+          📄 Detaya Git
+        </a>
+
+        {% if session.get('user_id') %}
+          <a href="{{ url_for('favorite_product', id=p.id) }}" class="text-yellow-600 hover:underline text-sm mt-2 block">
+            ⭐ Favorilere Ekle/Kaldır
+          </a>
+        {% endif %}
+
+        {% if session.get('is_admin') %}
+          <div class="flex space-x-2 mt-4">
+            <a href="/admin/edit-product/{{ p.id }}" class="text-blue-600 text-sm hover:underline">Düzenle</a>
+
+            <form action="/admin/delete-product/{{ p.id }}" method="POST" onsubmit="return confirm('Silmek istediğine emin misin?')">
+              <button type="submit" class="text-red-600 text-sm hover:underline">Sil</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

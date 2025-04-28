@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Glutensiz Yaşam{% endblock %}</title>
+
+  <!-- TailwindCSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Leaflet Harita CSS ve JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+
+  {% block head %}{% endblock %}
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+
+  <!-- Navbar -->
+  <nav class="bg-green-700 text-white p-4 shadow-md">
+    <div class="container mx-auto flex justify-between items-center">
+      <a href="/" class="font-bold text-lg">Glutensiz Yaşam</a>
+
+      <div class="flex items-center space-x-4">
+        <!-- Arama Kutusu -->
+        <form action="/search" method="get" class="flex">
+          <input
+            type="text"
+            name="q"
+            placeholder="Restoran veya ürün ara..."
+            class="rounded-l px-3 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400"
+            required
+          >
+          <button
+            type="submit"
+            class="bg-white text-green-700 px-3 py-1 rounded-r hover:bg-green-100 transition"
+          >
+            Ara
+          </button>
+        </form>
+
+        <!-- Menü Linkleri -->
+        <a href="/restaurants" class="hover:underline">Restoranlar</a>
+        <a href="/nearby" class="hover:underline">Yakındaki Mekanlar</a>
+        <a href="/blogs" class="hover:underline">Bloglar</a>
+        <a href="/recipes" class="hover:underline">Tarifler</a>
+
+
+
+
+        {% if session.get('user_id') %}
+          <a href="/products" class="hover:underline">Ürünler</a> <!-- 👈 BURASI YENİ -->
+        {% endif %}
+
+        {% if session.get('is_admin') %}
+          <a href="/admin/dashboard" class="hover:underline text-sm">🛠️ Yönetim Paneli</a>
+        {% endif %}
+
+        {% if session.get('user_id') %}
+          <a href="/profile" class="hover:underline text-sm">👤 Profilim</a>
+          <span class="text-sm">👋 {{ session.username }}</span>
+          <a href="/logout" class="hover:underline text-sm">Çıkış Yap</a>
+        {% else %}
+          <a href="/login" class="hover:underline text-sm">Giriş</a>
+          <a href="/register" class="hover:underline text-sm">Kayıt Ol</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <!-- İçerik -->
+  <main class="container mx-auto py-10 px-4">
+
+    <!-- Flash Mesajlar -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6 space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3 rounded text-white
+              {% if category == 'success' %}bg-green-600
+              {% elif category == 'danger' %}bg-red-600
+              {% elif category == 'info' %}bg-blue-600
+              {% else %}bg-gray-600{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-200 text-center py-4 mt-10 text-sm">
+    &copy; 2025 Glutensiz Yaşam | Tüm Hakları Saklıdır
+  </footer>
+
+</body>
+</html>

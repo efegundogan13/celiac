@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Ürün Ekle{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold text-green-700 mb-6">Yeni Ürün Ekle</h1>
+
+  <form method="POST" class="space-y-4 max-w-2xl">
+    <input type="text" name="name" placeholder="Ürün Adı" class="w-full p-2 border rounded" required>
+    <input type="text" name="category" placeholder="Kategori" class="w-full p-2 border rounded" required>
+    <textarea name="description" placeholder="Açıklama" class="w-full p-2 border rounded"></textarea>
+    <input type="text" name="image_url" placeholder="Görsel URL" class="w-full p-2 border rounded">
+
+    <select name="restaurant_id" class="w-full p-2 border rounded" required>
+      <option value="">Restoran Seçin</option>
+      {% for r in restaurants %}
+        <option value="{{ r.id }}">{{ r.name }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="bg-green-700 text-white px-4 py-2 rounded">Kaydet</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Kayıt Ol{% endblock %}
+
+{% block content %}
+  <div class="max-w-md mx-auto bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold text-green-700 mb-6 text-center">Kayıt Ol</h1>
+
+    <form method="POST" class="space-y-4">
+      <input type="email" name="email" placeholder="E-posta" class="w-full p-2 border rounded" required>
+      <input type="text" name="username" placeholder="Kullanıcı Adı" class="w-full p-2 border rounded" required>
+      <input type="password" name="password" placeholder="Şifre" class="w-full p-2 border rounded" required>
+
+      <button type="submit" class="bg-green-700 text-white px-4 py-2 rounded w-full">Kayıt Ol</button>
+    </form>
+
+    <p class="text-center text-sm text-gray-600 mt-4">Zaten hesabınız var mı? <a href="/login" class="text-green-600 hover:underline">Giriş Yap</a></p>
+  </div>
+{% endblock %}

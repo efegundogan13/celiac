@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Arama Sonuçları{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold mb-6">"{{ query }}" için Arama Sonuçları</h1>
+
+  <!-- Restoranlar -->
+  <div class="mb-10">
+    <h2 class="text-xl font-semibold mb-4">Restoranlar</h2>
+    {% if restaurants %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for restaurant in restaurants %}
+          <div class="p-4 bg-white rounded shadow hover:shadow-md transition">
+            <h3 class="text-lg font-bold">
+              <a href="{{ url_for('restaurant_detail', id=restaurant.id) }}" class="hover:underline">
+                {{ restaurant.name }}
+              </a>
+            </h3>
+            <p class="text-sm mt-1">{{ restaurant.city }} • {{ restaurant.category }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Uygun restoran bulunamadı.</p>
+    {% endif %}
+  </div>
+
+  <!-- Ürünler -->
+  <div>
+    <h2 class="text-xl font-semibold mb-4">Ürünler</h2>
+    {% if products %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for product in products %}
+          <div class="p-4 bg-white rounded shadow hover:shadow-md transition">
+            <h3 class="text-lg font-bold">{{ product.name }}</h3>
+            <p class="text-sm mt-1">Restoran:
+              <a href="{{ url_for('restaurant_detail', id=product.restaurant_id) }}" class="hover:underline">
+                {{ product.restaurant.name }}
+              </a>
+            </p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>Uygun ürün bulunamadı.</p>
+    {% endif %}
+  </div>
+
+{% endblock %}
