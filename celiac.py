@@ -1,11 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+# Flask: Flask uygulamasını başlatır.
+# render_template: HTML şablon dosyalarını(.html) render etmek için kullanılır. render_template("index.html") vs.
+# request: HTTP isteği (GET, POST vs.) ile gönderilen verilere erişmek için kullanılır.
+# redirect: Belirli bir url'ye yönlendirme yapmak için kullanılır. redirect(url_for("login"))
+# url_for: Bir route fonskiyonunun URL'sini dinamik olarak oluşturur.url_for("home")
+# flash: Kullanıcıya tek seferlik bilgi veya hata mesajı vermek için kullanılır. flash("Kayıt Başarılı") vs.
+# session: Kullanıcı oturum bilgilerini saklamak için kullanılır. session["user_id"] = 3 vs.
 from flask_sqlalchemy import SQLAlchemy
+# Veritabanı işlemlerini Python'ın sınıfları üzerinden yapmayı sağlar.
 from werkzeug.security import generate_password_hash, check_password_hash
+# generate_password_hash: Parolayı hash'leyerek veritabanına güvenli bir şekilde kaydeder.
+# check_password_hash: Kullanıcının girdiği şifrenin hashlenmiş versiyonla eşleşip eşleşmediğini kontrol eder.
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///glutensiz.db'
+
+app = Flask(__name__) # Flask uygulamasını başlatır.
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'gizli_anahtar'
+app.secret_key = os.environ.get("SECRET_KEY", "fallback_key")
 
 db = SQLAlchemy(app)
 
@@ -35,11 +49,11 @@ class Restaurant(db.Model):
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
 
-    products = db.relationship('Product', backref='restaurant', lazy=True)  # 💥
+    products = db.relationship('Product', backref='restaurant', lazy=True)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)  # 💥
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text)
@@ -50,7 +64,6 @@ class FavoriteRestaurant(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
 
-    # İLİŞKİ (Relationship)
     restaurant = db.relationship('Restaurant', backref='favorite_restaurants')
 
 class FavoriteProduct(db.Model):
@@ -58,7 +71,6 @@ class FavoriteProduct(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
 
-    # İLİŞKİ (Relationship)
     product = db.relationship('Product', backref='favorite_products')
 
 class Comment(db.Model):
@@ -93,7 +105,6 @@ class BlogCategory(db.Model):
     blogs = db.relationship('Blog', backref='category', cascade='all, delete', lazy=True)
 
 
-
 class Blog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -102,6 +113,11 @@ class Blog(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     category_id = db.Column(db.Integer, db.ForeignKey('blog_category.id'), nullable=False)
+
+    # İlişkiler
+    comments = db.relationship('BlogComment', back_populates='blog', cascade='all, delete', passive_deletes=True)
+    likes = db.relationship('BlogLike', back_populates='blog', cascade='all, delete', passive_deletes=True)
+
 
 
 
@@ -114,7 +130,8 @@ class BlogComment(db.Model):
     blog_id = db.Column(db.Integer, db.ForeignKey('blog.id', ondelete='CASCADE'), nullable=False)
 
     user = db.relationship('User', backref='blog_comments')
-    blog = db.relationship('Blog', backref='comments')  # 👈 burada 'comments' farklı bir isim!
+    blog = db.relationship('Blog', back_populates='comments')
+
 
 
 class BlogLike(db.Model):
@@ -123,7 +140,8 @@ class BlogLike(db.Model):
     blog_id = db.Column(db.Integer, db.ForeignKey('blog.id', ondelete='CASCADE'), nullable=False)
 
     user = db.relationship('User', backref='blog_likes')
-    blog = db.relationship('Blog', backref='likes', passive_deletes=True)
+    blog = db.relationship('Blog', back_populates='likes')
+
 
 # TARİF MODELLERİ
 
@@ -946,3 +964,4 @@ if __name__ == '__main__':
             print("✅ Admin kullanıcı oluşturuldu.")
 
     app.run(debug=True)
+
