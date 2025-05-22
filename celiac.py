@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 # Flask: Flask uygulamasını başlatır.
 # render_template: HTML şablon dosyalarını(.html) render etmek için kullanılır. render_template("index.html") vs.
 # request: HTTP isteği (GET, POST vs.) ile gönderilen verilere erişmek için kullanılır.
@@ -200,6 +200,32 @@ def login():
             flash("E-posta veya şifre hatalı.", "danger")
 
     return render_template('login.html')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'JSON verisi gerekli!'}), 400
+
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({'error': 'Kullanıcı adı ve şifre gerekli!'}), 400
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.check_password(password):
+            return jsonify({'message': 'Giriş başarılı!', 'user_id': user.id}), 200
+        else:
+            return jsonify({'error': 'Giriş başarısız!'}), 401
+
+    except Exception as e:
+        print(f"Hata: {e}")
+        return jsonify({'error': 'Sunucu hatası'}), 500
+
 
 @app.route('/logout')
 def logout():
@@ -726,10 +752,6 @@ def haversine(lat1, lon1, lat2, lon2):
 
 @app.route('/blogs')
 def blogs():
-    if not session.get('user_id'):
-        flash('Blog yazılarını görmek için giriş yapmalısınız.', 'danger')
-        return redirect(url_for('login'))
-
     blogs = Blog.query.order_by(Blog.created_at.desc()).all()
     categories = BlogCategory.query.all()
     return render_template('blogs.html', blogs=blogs, categories=categories)
@@ -737,10 +759,6 @@ def blogs():
 
 @app.route('/blogs/category/<int:category_id>')
 def blogs_by_category(category_id):
-    if not session.get('user_id'):
-        flash('Blog yazılarını görmek için giriş yapmalısınız.', 'danger')
-        return redirect(url_for('login'))
-
     blogs = Blog.query.filter_by(category_id=category_id).order_by(Blog.created_at.desc()).all()
     categories = BlogCategory.query.all()
     selected_category = BlogCategory.query.get_or_404(category_id)
@@ -749,10 +767,6 @@ def blogs_by_category(category_id):
 
 @app.route('/blogs/<int:blog_id>')
 def blog_detail(blog_id):
-    if not session.get('user_id'):
-        flash('Blog yazılarını görmek için giriş yapmalısınız.', 'danger')
-        return redirect(url_for('login'))
-
     blog = Blog.query.get_or_404(blog_id)
     categories = BlogCategory.query.all()
     return render_template('blog_detail.html', blog=blog, categories=categories)
@@ -947,6 +961,131 @@ def edit_recipe(recipe_id):
         return redirect(url_for('recipe_detail', id=recipe.id))
 
     return render_template('edit_recipe.html', recipe=recipe)
+
+"""
+MOBİL
+"""
+
+@app.route('/api/restaurants')
+def api_restaurants():
+    restaurants = Restaurant.query.all()
+    data = [
+        {
+            'id': r.id,
+            'name': r.name,
+            'city': r.city,
+            'district': r.address,  # ayrı district alanı varsa onu yaz
+            'description': r.description,
+            'image_url': r.image_url
+        }
+        for r in restaurants
+    ]
+    return jsonify(data)
+
+@app.route('/api/restaurants/<int:id>/products')
+def api_restaurant_products(id):
+    products = Product.query.filter_by(restaurant_id=id).all()
+    data = [
+        {
+            'id': p.id,
+            'name': p.name,
+            'description': p.description,
+            'category': p.category,
+            'image_url': p.image_url,
+            'restaurant_id': p.restaurant_id
+        }
+        for p in products
+    ]
+    return jsonify(data)
+
+@app.route('/api/recipes')
+def api_recipes():
+    recipes = Recipe.query.order_by(Recipe.created_at.desc()).all()
+    data = [
+        {
+            'id': r.id,
+            'title': r.title,
+            'content': r.content,
+            'image_url': r.image_url,
+            'user_id': r.user_id
+        }
+        for r in recipes
+    ]
+    return jsonify(data)
+
+@app.route('/api/comments/restaurant', methods=['POST'])
+def api_comment_restaurant():
+    data = request.json
+    user_id = data.get('user_id')
+    restaurant_id = data.get('restaurant_id')
+    rating = data.get('rating')
+    text = data.get('text')
+
+    new_comment = Comment(
+        user_id=user_id,
+        restaurant_id=restaurant_id,
+        rating=rating,
+        text=text
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+
+    return jsonify({'message': 'Yorum başarıyla eklendi'})
+
+@app.route('/api/comments/product', methods=['POST'])
+def api_comment_product():
+    data = request.json
+    user_id = data.get('user_id')
+    product_id = data.get('product_id')
+    rating = data.get('rating')
+    text = data.get('text')
+
+    new_comment = ProductComment(
+        user_id=user_id,
+        product_id=product_id,
+        rating=rating,
+        text=text
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+
+    return jsonify({'message': 'Yorum başarıyla eklendi'})
+
+recipe_like_store = {}
+
+@app.route('/api/like/recipe', methods=['POST'])
+def api_like_recipe():
+    data = request.json
+    recipe_id = str(data.get('recipe_id'))
+    user_id = str(data.get('user_id'))
+
+    key = f"{recipe_id}-{user_id}"
+    if key in recipe_like_store:
+        del recipe_like_store[key]
+        return jsonify({'liked': False})
+    else:
+        recipe_like_store[key] = True
+        return jsonify({'liked': True})
+
+@app.route('/api/user/favorites/<int:user_id>')
+def api_user_favorites(user_id):
+    fav_restaurants = FavoriteRestaurant.query.filter_by(user_id=user_id).all()
+    fav_products = FavoriteProduct.query.filter_by(user_id=user_id).all()
+
+    return jsonify({
+        'restaurants': [f.restaurant_id for f in fav_restaurants],
+        'products': [f.product_id for f in fav_products]
+    })
+
+@app.route('/api/user/comments/<int:user_id>')
+def api_user_comments(user_id):
+    rest_comments = Comment.query.filter_by(user_id=user_id).all()
+    prod_comments = ProductComment.query.filter_by(user_id=user_id).all()
+
+    return jsonify({
+        'restaurant_comments': [{'text': c.text, 'restaurant_id': c.restaurant_id} for c in rest_comments],
+        'product_comments': [{'text': c.text, 'product_id': c.product_id} for c in prod_comments]
+    })
 
 # ------------------ BAŞLAT ------------------
 

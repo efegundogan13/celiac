@@ -17,12 +17,12 @@
 <body class="bg-gray-100 text-gray-800">
 
   <!-- Navbar -->
-  <nav class="bg-green-700 text-white p-4 shadow-md">
-    <div class="container mx-auto flex justify-between items-center">
-      <a href="/" class="font-bold text-lg">Glutasyon (Glutensiz Rotanız)</a>
+  <nav class="bg-green-700 text-white py-6 px-8 shadow-md">
+    <div class="container mx-auto flex justify-start space-x-4 items-center">
+      <a href="/" class="flex items-center"><img src="/static/glutasyon.jpg" alt="Glutasyon Logo" class="h-36 object-contain mr-6" style="height: 120px; width: auto;"></a>
 
-      <div class="flex items-center space-x-4">
-        <!-- Arama Kutusu -->
+      <div class="flex items-center justify-between w-full space-x-8 bg-green-600 bg-opacity-20 py-4 px-6 rounded-lg">
+
         <form action="/search" method="get" class="flex">
           <input
             type="text"
@@ -38,6 +38,7 @@
             Ara
           </button>
         </form>
+<div class="text-white text-lg font-semibold">Glutensiz Yaşamın En Kapsamlı Rehberi</div>
 
         <!-- Menü Linkleri -->
         <a href="/restaurants" class="hover:underline">Restoranlar</a>
@@ -45,11 +46,8 @@
         <a href="/blogs" class="hover:underline">Bloglar</a>
         <a href="/recipes" class="hover:underline">Tarifler</a>
 
-
-
-
         {% if session.get('user_id') %}
-          <a href="/products" class="hover:underline">Ürünler</a> <!-- 👈 BURASI YENİ -->
+          <a href="/products" class="hover:underline">Ürünler</a>
         {% endif %}
 
         {% if session.get('is_admin') %}
@@ -76,7 +74,7 @@
       {% if messages %}
         <div class="mb-6 space-y-2">
           {% for category, message in messages %}
-            <div class="p-3 rounded text-white
+            <div class="py-6 px-8 rounded text-white
               {% if category == 'success' %}bg-green-600
               {% elif category == 'danger' %}bg-red-600
               {% elif category == 'info' %}bg-blue-600
