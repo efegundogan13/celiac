@@ -998,6 +998,57 @@ def api_restaurant_products(restaurant_id):
     ]
     return jsonify(data)
 
+@app.route('/api/nearby', methods=['POST'])
+def api_nearby():
+    user_lat = float(request.form['latitude'])
+    user_lng = float(request.form['longitude'])
+
+    restaurants = Restaurant.query.all()
+    nearby_restaurants = []
+
+    for r in restaurants:
+        if r.latitude and r.longitude:
+            distance = haversine(user_lat, user_lng, r.latitude, r.longitude)
+            nearby_restaurants.append((r, distance))
+
+    nearby_restaurants.sort(key=lambda x: x[1])
+    top_5 = nearby_restaurants[:5]
+
+    return jsonify([
+        {
+            'id': r.id,
+            'name': r.name,
+            'image_url': r.image_url,
+            'city': r.city,
+            'district': getattr(r, 'district', ''),
+            'address': r.address,
+            'distance_km': round(d, 2)
+        } for r, d in top_5
+    ])
+
+
+@app.route('/api/products')
+def api_products():
+    restaurant_id = request.args.get('restaurant_id')
+
+    if restaurant_id:
+        products = Product.query.filter_by(restaurant_id=restaurant_id).all()
+    else:
+        products = Product.query.all()
+
+    return jsonify([
+        {
+            'id': p.id,
+            'name': p.name,
+            'description': p.description,
+            'ingredients': p.description,  # içerik bilgisi yoksa açıklamayı kullan
+            'image_url': p.image_url,
+            'restaurant_id': p.restaurant_id
+        } for p in products
+    ])
+
+
+
 @app.route('/api/recipes')
 def api_recipes():
     recipes = Recipe.query.order_by(Recipe.created_at.desc()).all()
