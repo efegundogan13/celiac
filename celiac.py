@@ -982,15 +982,15 @@ def api_restaurants():
     ]
     return jsonify(data)
 
-@app.route('/api/restaurants/<int:id>/products')
-def api_restaurant_products(id):
-    products = Product.query.filter_by(restaurant_id=id).all()
+@app.route('/api/restaurants/<int:restaurant_id>/products')
+def api_restaurant_products(restaurant_id):
+    products = Product.query.filter_by(restaurant_id=restaurant_id).all()
     data = [
         {
             'id': p.id,
             'name': p.name,
-            'description': p.description,
             'category': p.category,
+            'description': p.description,
             'image_url': p.image_url,
             'restaurant_id': p.restaurant_id
         }
@@ -1086,6 +1086,30 @@ def api_user_comments(user_id):
         'restaurant_comments': [{'text': c.text, 'restaurant_id': c.restaurant_id} for c in rest_comments],
         'product_comments': [{'text': c.text, 'product_id': c.product_id} for c in prod_comments]
     })
+
+@app.route('/api/user/<int:user_id>/profile')
+def user_profile(user_id):
+    user = User.query.get_or_404(user_id)
+
+    fav_restaurants = FavoriteRestaurant.query.filter_by(user_id=user_id).all()
+    fav_products = FavoriteProduct.query.filter_by(user_id=user_id).all()
+    comments = Comment.query.filter_by(user_id=user_id).all()
+
+    return jsonify({
+        'username': user.username,
+        'favorites': {
+            'restaurants': [r.restaurant.name for r in fav_restaurants],
+            'products': [p.product.name for p in fav_products]
+        },
+        'comments': [
+            {
+                'restaurant': c.restaurant.name,
+                'text': c.text,
+                'rating': c.rating
+            } for c in comments
+        ]
+    })
+
 
 # ------------------ BAŞLAT ------------------
 
