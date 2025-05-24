@@ -969,18 +969,20 @@ MOBİL
 @app.route('/api/restaurants')
 def api_restaurants():
     restaurants = Restaurant.query.all()
-    data = [
+    return jsonify([
         {
             'id': r.id,
             'name': r.name,
-            'city': r.city,
-            'district': r.address,  # ayrı district alanı varsa onu yaz
             'description': r.description,
-            'image_url': r.image_url
+            'city': r.city,
+            'district': '',  # Eğer varsa: r.district
+            'image_url': r.image_url,
+            'latitude': r.latitude,
+            'longitude': r.longitude
         }
         for r in restaurants
-    ]
-    return jsonify(data)
+    ])
+
 
 @app.route('/api/restaurants/<int:restaurant_id>/products')
 def api_restaurant_products(restaurant_id):
@@ -1161,6 +1163,95 @@ def user_profile(user_id):
         ]
     })
 
+@app.route('/api/search')
+def api_search():
+    query = request.args.get('q', '').strip().lower()
+
+    if not query:
+        return jsonify({
+            'restaurants': [],
+            'products': [],
+            'recipes': []
+        })
+
+    restaurants = Restaurant.query.filter(Restaurant.name.ilike(f'%{query}%')).all()
+    products = Product.query.filter(Product.name.ilike(f'%{query}%')).all()
+    recipes = Recipe.query.filter(Recipe.title.ilike(f'%{query}%')).all()
+
+    return jsonify({
+        'restaurants': [
+            {
+                'id': r.id,
+                'name': r.name,
+                'description': r.description,
+                'city': r.city,
+                'image_url': r.image_url,
+                'latitude': r.latitude,
+                'longitude': r.longitude
+            } for r in restaurants
+        ],
+        'products': [
+            {
+                'id': p.id,
+                'name': p.name,
+                'description': p.description,
+                'restaurant_id': p.restaurant_id
+            } for p in products
+        ],
+        'recipes': [
+            {
+                'id': rec.id,
+                'title': rec.title,
+                'content': rec.content,
+                'image_url': rec.image_url
+            } for rec in recipes
+        ]
+    })
+
+@app.route('/api/blogs')
+def api_blogs():
+    blogs = Blog.query.order_by(Blog.created_at.desc()).all()
+    blog_list = [
+        {
+            'id': blog.id,
+            'title': blog.title,
+            'content': blog.content,
+            'image_url': blog.image_url,
+            'created_at': blog.created_at.strftime('%Y-%m-%d'),
+            'category': blog.category.name if blog.category else None
+        }
+        for blog in blogs
+    ]
+    return jsonify(blog_list)
+
+@app.route('/api/blogs/<int:id>')
+def api_blog_detail(id):
+    blog = Blog.query.get_or_404(id)
+    return jsonify({
+        'id': blog.id,
+        'title': blog.title,
+        'content': blog.content,
+        'image_url': blog.image_url,
+        'created_at': blog.created_at.strftime('%Y-%m-%d'),
+        'category': blog.category.name if blog.category else None
+    })
+
+@app.route('/api/blogs/category/<int:category_id>')
+def api_blogs_by_category(category_id):
+    blogs = Blog.query.filter_by(category_id=category_id).order_by(Blog.created_at.desc()).all()
+    result = []
+
+    for blog in blogs:
+        result.append({
+            'id': blog.id,
+            'title': blog.title,
+            'content': blog.content,
+            'image_url': blog.image_url,
+            'created_at': blog.created_at.strftime('%Y-%m-%d'),
+            'category': blog.category.name if blog.category else None
+        })
+
+    return jsonify(result)
 
 # ------------------ BAŞLAT ------------------
 
