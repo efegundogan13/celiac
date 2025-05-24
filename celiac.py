@@ -1253,6 +1253,38 @@ def api_blogs_by_category(category_id):
 
     return jsonify(result)
 
+@app.route('/api/blogs/<int:blog_id>/comments')
+def api_blog_comments(blog_id):
+    comments = BlogComment.query.filter_by(blog_id=blog_id).order_by(BlogComment.created_at.desc()).all()
+    result = []
+
+    for c in comments:
+        result.append({
+            'id': c.id,
+            'text': c.text,
+            'created_at': c.created_at.strftime('%Y-%m-%d'),
+            'username': c.user.username if c.user else 'Anonim'
+        })
+
+    return jsonify(result)
+
+@app.route('/api/blogs/<int:blog_id>/comment', methods=['POST'])
+def api_add_blog_comment(blog_id):
+    data = request.get_json()
+
+    user_id = data.get('user_id')
+    text = data.get('text')
+
+    if not user_id or not text:
+        return jsonify({'error': 'user_id ve text zorunlu'}), 400
+
+    comment = BlogComment(user_id=user_id, blog_id=blog_id, text=text)
+    db.session.add(comment)
+    db.session.commit()
+
+    return jsonify({'message': 'Yorum eklendi'}), 201
+
+
 # ------------------ BAŞLAT ------------------
 
 if __name__ == '__main__':
