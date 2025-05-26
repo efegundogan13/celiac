@@ -1434,6 +1434,7 @@ def nearby_api():
     return jsonify(response_data)
 
 
+
 # ------------------ BAŞLAT ------------------
 
 if __name__ == '__main__':
