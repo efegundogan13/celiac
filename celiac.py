@@ -1391,6 +1391,36 @@ def get_restaurant(id):
         'longitude': restaurant.longitude
     })
 
+@app.route('/api/nearby', methods=['POST'])
+def nearby_api():
+    user_lat = float(request.form['latitude'])
+    user_lng = float(request.form['longitude'])
+
+    restaurants = Restaurant.query.all()
+    nearby_restaurants = []
+
+    for r in restaurants:
+        if r.latitude and r.longitude:
+            distance = haversine(user_lat, user_lng, r.latitude, r.longitude)
+            nearby_restaurants.append((r, distance))
+
+    nearby_restaurants.sort(key=lambda x: x[1])
+    top_5 = nearby_restaurants[:5]
+
+    return jsonify([
+        {
+            "id": r.id,
+            "name": r.name,
+            "description": r.description,
+            "city": r.city,
+            "district": r.district,
+            "image_url": r.image_url,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "distance_km": round(d, 2)
+        }
+        for r, d in top_5
+    ])
 # ------------------ BAŞLAT ------------------
 
 if __name__ == '__main__':
