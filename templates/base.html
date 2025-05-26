@@ -11,88 +11,101 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 
+  <!-- El yazısı fontu -->
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+
   {% block head %}{% endblock %}
 </head>
 
-<body class="bg-gray-100 text-gray-800">
+<body class="text-gray-800">
+  <div style="background-color: #F8F9FA; min-height: 100vh;">
 
-  <!-- Navbar -->
-  <nav class="bg-green-700 text-white py-6 px-8 shadow-md">
-    <div class="container mx-auto flex justify-start space-x-4 items-center">
-      <a href="/" class="flex items-center"><img src="/static/GlutasyonLogo_Orj.png" alt="Glutasyon Logo" class="h-36 object-contain mr-6" style="height: 120px; width: auto;"></a>
+    <!-- ✅ Navbar -->
+    <nav style="background-color: #F2E8D5;" class="py-6 px-8 shadow-md">
+      <div class="container mx-auto flex justify-start space-x-4 items-center">
+        <a href="/" class="flex items-center">
+          <img src="/static/GlutasyonLogo_Orj.png" alt="Glutasyon Logo"
+               class="h-24 object-contain mr-6" style="width: auto;">
+        </a>
 
-      <div class="flex items-center justify-between w-full space-x-8 bg-green-600 bg-opacity-20 py-4 px-6 rounded-lg">
+        <div class="flex items-center justify-between w-full space-x-8 py-4 px-6 rounded-lg">
 
-        <form action="/search" method="get" class="flex">
-          <input
-            type="text"
-            name="q"
-            placeholder="Restoran veya ürün ara..."
-            class="rounded-l px-3 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400"
-            required
-          >
-          <button
-            type="submit"
-            class="bg-white text-green-700 px-3 py-1 rounded-r hover:bg-green-100 transition"
-          >
-            Ara
-          </button>
-        </form>
-<div class="text-white text-lg font-semibold">Glutensiz Yaşamın En Kapsamlı Rehberi</div>
+          <form action="/search" method="get" class="flex">
+            <input
+              type="text"
+              name="q"
+              placeholder="Restoran veya ürün ara..."
+              class="rounded-l px-3 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400"
+              required
+            >
+            <button
+              type="submit"
+              class="bg-white text-green-700 px-3 py-1 rounded-r hover:bg-green-100 transition"
+            >
+              Ara
+            </button>
+          </form>
 
-        <!-- Menü Linkleri -->
-        <a href="/restaurants" class="hover:underline">Restoranlar</a>
-        <a href="/nearby" class="hover:underline">Yakındaki Mekanlar</a>
-        <a href="/blogs" class="hover:underline">Bloglar</a>
-        <a href="/recipes" class="hover:underline">Tarifler</a>
+          <div class="text-lg font-semibold" style="color: #006D52;">Glutensiz Yaşamın En Kapsamlı Rehberi</div>
 
-        {% if session.get('user_id') %}
-          <a href="/products" class="hover:underline">Ürünler</a>
-        {% endif %}
+          <!-- Menü Linkleri -->
+          <div class="flex items-center gap-6 text-sm font-medium" style="color: #006D52;">
+            <a href="/restaurants" class="hover:underline hover:text-[#004F3E] transition">Restoranlar</a>
+            <a href="/nearby" class="hover:underline hover:text-[#004F3E] transition">Yakındaki Mekanlar</a>
+            <a href="/blogs" class="hover:underline hover:text-[#004F3E] transition">Bloglar</a>
+            <a href="/recipes" class="hover:underline hover:text-[#004F3E] transition">Tarifler</a>
 
-        {% if session.get('is_admin') %}
-          <a href="/admin/dashboard" class="hover:underline text-sm">🛠️ Yönetim Paneli</a>
-        {% endif %}
+            {% if session.get('user_id') %}
+              <a href="/products" class="hover:underline hover:text-[#004F3E] transition">Ürünler</a>
+            {% endif %}
 
-        {% if session.get('user_id') %}
-          <a href="/profile" class="hover:underline text-sm">👤 Profilim</a>
-          <span class="text-sm">👋 {{ session.username }}</span>
-          <a href="/logout" class="hover:underline text-sm">Çıkış Yap</a>
-        {% else %}
-          <a href="/login" class="hover:underline text-sm">Giriş</a>
-          <a href="/register" class="hover:underline text-sm">Kayıt Ol</a>
-        {% endif %}
-      </div>
-    </div>
-  </nav>
+            {% if session.get('is_admin') %}
+              <a href="/admin/dashboard" class="hover:underline hover:text-[#004F3E] transition">🛠️ Yönetim Paneli</a>
+            {% endif %}
 
-  <!-- İçerik -->
-  <main class="container mx-auto py-10 px-4">
-
-    <!-- Flash Mesajlar -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="mb-6 space-y-2">
-          {% for category, message in messages %}
-            <div class="py-6 px-8 rounded text-white
-              {% if category == 'success' %}bg-green-600
-              {% elif category == 'danger' %}bg-red-600
-              {% elif category == 'info' %}bg-blue-600
-              {% else %}bg-gray-600{% endif %}">
-              {{ message }}
+            <!-- 👤 Kullanıcı Sağ Bölüm -->
+            <div class="flex items-center gap-4">
+              {% if session.get('user_id') %}
+                <a href="/profile" class="hover:underline hover:text-[#004F3E] transition">👤 Profilim</a>
+                <span class="text-sm font-medium" style="color: #006D52;">👋 {{ session.username }}</span>
+                <a href="/logout" class="hover:underline hover:text-[#004F3E] transition">Çıkış Yap</a>
+              {% else %}
+                <a href="/login" class="hover:underline hover:text-[#004F3E] transition">Giriş</a>
+                <a href="/register" class="hover:underline hover:text-[#004F3E] transition">Kayıt Ol</a>
+              {% endif %}
             </div>
-          {% endfor %}
+          </div>
+
         </div>
-      {% endif %}
-    {% endwith %}
+      </div>
+    </nav>
 
-    {% block content %}{% endblock %}
-  </main>
+    <!-- İçerik -->
+    <main class="container mx-auto py-10 px-4">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-6 space-y-2">
+            {% for category, message in messages %}
+              <div class="py-6 px-8 rounded text-white
+                  {% if category == 'success' %}bg-green-600
+                  {% elif category == 'danger' %}bg-red-600
+                  {% elif category == 'info' %}bg-blue-600
+                  {% else %}bg-gray-600{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
 
-  <!-- Footer -->
-  <footer class="bg-gray-200 text-center py-4 mt-10 text-sm">
-    &copy; 2025 Glutensiz Yaşam | Tüm Hakları Saklıdır
-  </footer>
+      {% block content %}{% endblock %}
+    </main>
 
+    <!-- Footer -->
+    <footer class="text-center py-4 mt-10 text-sm text-gray-700">
+      &copy; 2025 Glutensiz Yaşam | Tüm Hakları Saklıdır
+    </footer>
+
+  </div>
 </body>
 </html>

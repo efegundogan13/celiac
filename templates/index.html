@@ -2,11 +2,24 @@
 {% block title %}Ana Sayfa{% endblock %}
 
 {% block content %}
-  <div class="text-center">
-    <h1 class="text-4xl font-bold text-green-700 mb-6">Glutensiz Yaşam Dünyasına Hoş Geldiniz</h1>
-    <p class="text-lg text-gray-700">Glutensiz restoranlar ve ürünler burada sizi bekliyor!</p>
-    <div class="mt-8">
-      <a href="/restaurants" class="bg-green-700 text-white px-6 py-3 rounded shadow hover:bg-green-800">Restoranları Keşfet</a>
-    </div>
-  </div>
+  <section class="py-16 px-8 text-center rounded-xl shadow-md border border-[#e4dccc]"
+           style="background-color: #F2E8D5;">
+
+    <h1 class="text-5xl font-medium mb-6" style="color: #006D52;">
+      Glutensiz Yaşam Dünyasına Hoş Geldiniz
+    </h1>
+
+    <p class="text-lg md:text-xl mb-8" style="color: #006D52;">
+      Glutensiz restoranlar ve ürünler burada sizi bekliyor!
+    </p>
+
+    <a href="/restaurants"
+       class="inline-block text-lg font-semibold px-8 py-3 rounded-xl shadow transition duration-200"
+       style="background-color: #006D52; color: white;"
+       onmouseover="this.style.backgroundColor='#006D52'"
+       onmouseout="this.style.backgroundColor='#006D52'">
+      Restoranları Keşfet
+    </a>
+  </section>
 {% endblock %}
+

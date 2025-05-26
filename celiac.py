@@ -193,7 +193,7 @@ def login():
         if user and user.check_password(password):
             session['user_id'] = user.id
             session['username'] = user.username
-            session['is_admin'] = user.is_admin
+            session['is_admin'] = (user.id == 1)
             flash(f"Hoş geldin {user.username}!", "success")
             return redirect(url_for('index'))
         else:
@@ -326,6 +326,77 @@ def delete_restaurant(id):
     db.session.commit()
     flash("Restoran silindi.", "success")
     return redirect(url_for('restaurants'))
+
+@app.route('/admin/product_comment')
+def admin_product_comments():
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comments = ProductComment.query.order_by(ProductComment.created_at.desc()).all()
+    return render_template('admin/product_comment.html', comments=comments)
+
+@app.route('/admin/delete_product_comment/<int:comment_id>', methods=['POST'])
+def admin_delete_product_comment(comment_id):
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comment = ProductComment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    flash("Yorum silindi.", "success")
+    return redirect(url_for('admin_product_comments'))
+
+@app.route('/admin/restaurant_comments')
+def admin_restaurant_comments():
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comments = Comment.query.order_by(Comment.created_at.desc()).all()
+    return render_template('admin/restaurant_comments.html', comments=comments)
+
+
+@app.route('/admin/delete_restaurant_comment/<int:comment_id>', methods=['POST'])
+def admin_delete_restaurant_comment(comment_id):
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comment = Comment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    flash("Restoran yorumu silindi.", "success")
+    return redirect(url_for('admin_restaurant_comments'))
+
+@app.route('/admin/blog_likes')
+def admin_blog_likes():
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    likes = BlogLike.query.order_by(BlogLike.id.desc()).all()
+    return render_template('admin/blog_likes.html', likes=likes)
+
+@app.route('/admin/favorite_restaurants')
+def admin_favorite_restaurants():
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    favorites = FavoriteRestaurant.query.all()
+    return render_template('admin/favorite_restaurants.html', favorites=favorites)
+
+@app.route('/admin/favorite_products')
+def admin_favorite_products():
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    favorites = FavoriteProduct.query.all()
+    return render_template('admin/favorite_products.html', favorites=favorites)
+
 
 # -------------- Admin: Ürün Yönetimi --------------
 
@@ -495,6 +566,28 @@ def delete_product_comment(comment_id):
 
     flash("Yorum başarıyla silindi.", "success")
     return redirect(url_for('product_detail', product_id=comment.product_id))
+
+@app.route('/admin/blog_comments')
+def admin_blog_comments():
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Bu sayfaya erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comments = BlogComment.query.order_by(BlogComment.created_at.desc()).all()
+    return render_template('admin/blog_comments.html', comments=comments)
+
+
+@app.route('/admin/delete_blog_comment/<int:comment_id>', methods=['POST'])
+def admin_delete_blog_comment(comment_id):
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comment = BlogComment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    flash("Blog yorumu silindi.", "success")
+    return redirect(url_for('admin_blog_comments'))
 
 
 # ------------------ FAVORİ RESTORAN ------------------
@@ -1284,6 +1377,19 @@ def api_add_blog_comment(blog_id):
 
     return jsonify({'message': 'Yorum eklendi'}), 201
 
+@app.route('/api/restaurants/<int:id>')
+def get_restaurant(id):
+    restaurant = Restaurant.query.get_or_404(id)
+    return jsonify({
+        'id': restaurant.id,
+        'name': restaurant.name,
+        'description': restaurant.description,
+        'city': restaurant.city,
+        'district': restaurant.district,
+        'image_url': restaurant.image_url,
+        'latitude': restaurant.latitude,
+        'longitude': restaurant.longitude
+    })
 
 # ------------------ BAŞLAT ------------------
 
