@@ -1398,44 +1398,41 @@ def nearby_api():
     try:
         user_lat = float(request.form.get('latitude', 0))
         user_lng = float(request.form.get('longitude', 0))
-
-        if not user_lat or not user_lng:
-            return jsonify({
-                "error": "Konum bilgisi eksik",
-                "form_data": dict(request.form)
-            }), 400
-
-        restaurants = Restaurant.query.all()
-        nearby_restaurants = []
-
-        for r in restaurants:
-            if r.latitude and r.longitude:
-                distance = haversine(user_lat, user_lng, r.latitude, r.longitude)
-                nearby_restaurants.append((r, distance))
-
-        nearby_restaurants.sort(key=lambda x: x[1])
-        top_5 = nearby_restaurants[:5]
-
-        return jsonify([
-            {
-                "id": r.id,
-                "name": r.name,
-                "description": r.description,
-                "city": r.city,
-                "district": r.district,
-                "image_url": r.image_url,
-                "latitude": r.latitude if r.latitude else 41.0082,
-                "longitude": r.longitude if r.longitude else 28.9784,
-                "distance_km": round(d, 2)
-            }
-            for r, d in top_5
-        ])
     except Exception as e:
         return jsonify({
-            "error": "Beklenmeyen bir hata oluştu",
+            "error": "Geçersiz konum bilgisi",
             "details": str(e),
             "form_data": dict(request.form)
-        }), 500
+        }), 400
+
+    restaurants = Restaurant.query.all()
+    nearby_restaurants = []
+
+    for r in restaurants:
+        if r.latitude is not None and r.longitude is not None:
+            distance = haversine(user_lat, user_lng, r.latitude, r.longitude)
+            nearby_restaurants.append((r, distance))
+
+    nearby_restaurants.sort(key=lambda x: x[1])
+    top_5 = nearby_restaurants[:5]
+
+    response_data = []
+    for r, d in top_5:
+        response_data.append({
+            "id": r.id,
+            "name": r.name,
+            "description": r.description,
+            "city": r.city,
+            "district": r.district,
+            "image_url": r.image_url,
+            "address": r.address,
+            "latitude": float(r.latitude),    # 🔒 Cast ile garantili
+            "longitude": float(r.longitude),  # 🔒 Cast ile garantili
+            "distance_km": round(d, 2)
+        })
+
+    return jsonify(response_data)
+
 
 # ------------------ BAŞLAT ------------------
 
