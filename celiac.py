@@ -1391,7 +1391,7 @@ def get_restaurant(id):
         'longitude': restaurant.longitude
     })
 
-from flask import request, jsonify
+
 
 @app.route('/api/nearby', methods=['POST'])
 def nearby_api():
@@ -1424,8 +1424,8 @@ def nearby_api():
                 "city": r.city,
                 "district": r.district,
                 "image_url": r.image_url,
-                "latitude": r.latitude,
-                "longitude": r.longitude,
+                "latitude": r.latitude if r.latitude else 41.0082,
+                "longitude": r.longitude if r.longitude else 28.9784,
                 "distance_km": round(d, 2)
             }
             for r, d in top_5
