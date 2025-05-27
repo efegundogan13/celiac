@@ -1206,7 +1206,7 @@ def get_comments_for_restaurant(restaurant_id):
         {
             "text": c.text,
             "rating": c.rating,
-            "user_id": c.user_id,
+            "user": c.user.username if c.user else "Anonim",
             "created_at": c.created_at.strftime("%Y-%m-%d %H:%M")
         }
         for c in comments
@@ -1219,7 +1219,7 @@ def get_comments_for_product(product_id):
         {
             "text": c.text,
             "rating": c.rating,
-            "user_id": c.user_id,
+            "user": c.user.username if c.user else "Anonim",
             "created_at": c.created_at.strftime("%Y-%m-%d %H:%M")
         }
         for c in comments
