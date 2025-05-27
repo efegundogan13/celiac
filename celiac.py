@@ -1199,6 +1199,33 @@ def api_comment_product():
 
 recipe_like_store = {}
 
+@app.route('/api/comments/restaurant/<int:restaurant_id>', methods=['GET'])
+def get_comments_for_restaurant(restaurant_id):
+    comments = Comment.query.filter_by(restaurant_id=restaurant_id).all()
+    return jsonify([
+        {
+            "text": c.text,
+            "rating": c.rating,
+            "user_id": c.user_id,
+            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M")
+        }
+        for c in comments
+    ])
+
+@app.route('/api/comments/product/<int:product_id>', methods=['GET'])
+def get_comments_for_product(product_id):
+    comments = ProductComment.query.filter_by(product_id=product_id).all()
+    return jsonify([
+        {
+            "text": c.text,
+            "rating": c.rating,
+            "user_id": c.user_id,
+            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M")
+        }
+        for c in comments
+    ])
+
+
 @app.route('/api/like/recipe', methods=['POST'])
 def api_like_recipe():
     data = request.json
