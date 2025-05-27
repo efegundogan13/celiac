@@ -1532,6 +1532,32 @@ def get_user_liked_blogs(user_id):
     likes = BlogLike.query.filter_by(user_id=user_id).all()
     return jsonify([like.blog_id for like in likes])
 
+@app.route('/api/recipes', methods=['POST'])
+def recipe_add():
+    data = request.json
+
+    # Zorunlu alanlar
+    user_id = data.get('user_id')
+    title = data.get('title')
+    content = data.get('content')
+    image_url = data.get('image_url', '')
+
+    if not user_id or not title or not content:
+        return jsonify({'error': 'Eksik bilgi'}), 400
+
+    try:
+        new_recipe = Recipe(
+            user_id=user_id,
+            title=title,
+            content=content,
+            image_url=image_url
+        )
+        db.session.add(new_recipe)
+        db.session.commit()
+        return jsonify({'message': 'Tarif eklendi'}), 200
+    except Exception as e:
+        print('Tarif ekleme hatası:', e)
+        return jsonify({'error': 'Sunucu hatası'}), 500
 
 # ------------------ BAŞLAT ------------------
 
