@@ -1461,6 +1461,77 @@ def nearby_api():
     return jsonify(response_data)
 
 
+@app.route('/api/favorites/product', methods=['POST'])
+def add_favorite_product():
+    data = request.json
+    user_id = data.get('user_id')
+    product_id = data.get('product_id')
+
+    existing = FavoriteProduct.query.filter_by(user_id=user_id, product_id=product_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'status': 'removed'})
+
+    fav = FavoriteProduct(user_id=user_id, product_id=product_id)
+    db.session.add(fav)
+    db.session.commit()
+    return jsonify({'status': 'added'})
+
+@app.route('/api/favorites/restaurant', methods=['POST'])
+def add_favorite_restaurant():
+    data = request.json
+    user_id = data.get('user_id')
+    restaurant_id = data.get('restaurant_id')
+
+    existing = FavoriteRestaurant.query.filter_by(user_id=user_id, restaurant_id=restaurant_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'status': 'removed'})
+
+    fav = FavoriteRestaurant(user_id=user_id, restaurant_id=restaurant_id)
+    db.session.add(fav)
+    db.session.commit()
+    return jsonify({'status': 'added'})
+
+@app.route('/api/favorites/product/<int:user_id>', methods=['GET'])
+def get_favorite_products(user_id):
+    favorites = FavoriteProduct.query.filter_by(user_id=user_id).all()
+    return jsonify([f.product_id for f in favorites])
+
+@app.route('/api/favorites/restaurant/<int:user_id>', methods=['GET'])
+def get_favorite_restaurants(user_id):
+    favorites = FavoriteRestaurant.query.filter_by(user_id=user_id).all()
+    return jsonify([f.restaurant_id for f in favorites])
+
+@app.route('/api/likes/blog', methods=['POST'])
+def like_blog():
+    data = request.json
+    user_id = data.get('user_id')
+    blog_id = data.get('blog_id')
+
+    existing = BlogLike.query.filter_by(user_id=user_id, blog_id=blog_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'status': 'removed'})
+
+    like = BlogLike(user_id=user_id, blog_id=blog_id)
+    db.session.add(like)
+    db.session.commit()
+    return jsonify({'status': 'added'})
+
+@app.route('/api/likes/blog/<int:blog_id>', methods=['GET'])
+def get_blog_likes(blog_id):
+    count = BlogLike.query.filter_by(blog_id=blog_id).count()
+    return jsonify({'likes': count})
+
+@app.route('/api/likes/blog/user/<int:user_id>', methods=['GET'])
+def get_user_liked_blogs(user_id):
+    likes = BlogLike.query.filter_by(user_id=user_id).all()
+    return jsonify([like.blog_id for like in likes])
+
 
 # ------------------ BAŞLAT ------------------
 
