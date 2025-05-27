@@ -1506,7 +1506,7 @@ def get_favorite_restaurants(user_id):
     return jsonify([f.restaurant_id for f in favorites])
 
 @app.route('/api/likes/blog', methods=['POST'])
-def like_blog():
+def like_or_unlike_blog():
     data = request.json
     user_id = data.get('user_id')
     blog_id = data.get('blog_id')
