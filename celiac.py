@@ -1161,22 +1161,32 @@ def api_recipes():
 
 @app.route('/api/comments/restaurant', methods=['POST'])
 def api_comment_restaurant():
-    data = request.json
-    user_id = data.get('user_id')
-    restaurant_id = data.get('restaurant_id')
-    rating = data.get('rating')
-    text = data.get('text')
+    if not request.json:
+        return jsonify({'error': 'Geçersiz veri'}), 400
 
-    new_comment = Comment(
-        user_id=user_id,
-        restaurant_id=restaurant_id,
-        rating=rating,
-        text=text
-    )
-    db.session.add(new_comment)
-    db.session.commit()
+    user_id = request.json.get('user_id')
+    restaurant_id = request.json.get('restaurant_id')
+    rating = request.json.get('rating')
+    text = request.json.get('text')
 
-    return jsonify({'message': 'Yorum başarıyla eklendi'})
+    if not all([user_id, restaurant_id, rating, text]):
+        return jsonify({'error': 'Tüm alanlar zorunludur'}), 400
+
+    try:
+        new_comment = Comment(
+            user_id=user_id,
+            restaurant_id=restaurant_id,
+            rating=int(rating),
+            text=text
+        )
+        db.session.add(new_comment)
+        db.session.commit()
+        return jsonify({'message': 'Yorum başarıyla eklendi'}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Bir hata oluştu: {str(e)}'}), 500
+
 
 @app.route('/api/comments/product', methods=['POST'])
 def api_comment_product():
@@ -1185,6 +1195,9 @@ def api_comment_product():
     product_id = data.get('product_id')
     rating = data.get('rating')
     text = data.get('text')
+
+    if not all([user_id, product_id, rating, text]):
+        return jsonify({'error': 'Eksik bilgi'}), 400
 
     new_comment = ProductComment(
         user_id=user_id,
@@ -1197,7 +1210,6 @@ def api_comment_product():
 
     return jsonify({'message': 'Yorum başarıyla eklendi'})
 
-recipe_like_store = {}
 
 @app.route('/api/comments/restaurant/<int:restaurant_id>', methods=['GET'])
 def get_comments_for_restaurant(restaurant_id):
