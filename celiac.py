@@ -1087,21 +1087,7 @@ def api_restaurants():
     ])
 
 
-@app.route('/api/restaurants/<int:restaurant_id>/products')
-def api_restaurant_products(restaurant_id):
-    products = Product.query.filter_by(restaurant_id=restaurant_id).all()
-    data = [
-        {
-            'id': p.id,
-            'name': p.name,
-            'category': p.category,
-            'description': p.description,
-            'image_url': p.image_url,
-            'restaurant_id': p.restaurant_id
-        }
-        for p in products
-    ]
-    return jsonify(data)
+
 
 @app.route('/api/nearby', methods=['POST'])
 def api_nearby():
@@ -1446,11 +1432,13 @@ def api_restaurant_detail(id):
         'image_url': restaurant.image_url,
         'address': restaurant.address,
         'city': restaurant.city,
-        'district': restaurant.district,  # 🔧 Eklendi
-        'latitude': restaurant.latitude,  # ✅ Gerekli
-        'longitude': restaurant.longitude,  # ✅ Gerekli
+        'district': restaurant.district,
+        'latitude': restaurant.latitude,
+        'longitude': restaurant.longitude,
+        'category': restaurant.category,
         'products_by_category': products_by_category
     })
+
 
 
 
