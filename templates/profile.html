@@ -23,22 +23,7 @@
     {% endif %}
   </div>
 
-  <!-- Favori Ürünler -->
-  <div class="mb-10">
-    <h2 class="text-2xl font-semibold text-green-700 mb-4">Favori Ürünlerim</h2>
-    {% if favorite_products %}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for fav in favorite_products %}
-          <div class="bg-white p-4 rounded shadow hover:shadow-md transition">
-            <h3 class="text-lg font-bold">{{ fav.product.name }}</h3>
-            <p class="text-gray-600 text-sm mt-1">{{ fav.product.category }}</p>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="text-gray-600 text-sm">Henüz favori ürününüz yok.</p>
-    {% endif %}
-  </div>
+  
 
   <!-- Yazdığım Yorumlar -->
   <div>
