@@ -55,9 +55,7 @@
             <a href="/blogs" class="hover:underline hover:text-[#004F3E] transition">Bloglar</a>
             <a href="/recipes" class="hover:underline hover:text-[#004F3E] transition">Tarifler</a>
 
-            {% if session.get('user_id') %}
-              <a href="/products" class="hover:underline hover:text-[#004F3E] transition">Ürünler</a>
-            {% endif %}
+
 
             {% if session.get('is_admin') %}
               <a href="/admin/dashboard" class="hover:underline hover:text-[#004F3E] transition">🛠️ Yönetim Paneli</a>

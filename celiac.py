@@ -265,7 +265,17 @@ def restaurants():
 def restaurant_detail(id):
     restaurant = Restaurant.query.get_or_404(id)
     products = Product.query.filter_by(restaurant_id=id).all()
-    return render_template('restaurant_detail.html', restaurant=restaurant, products=products)
+
+    # Ürünleri kategoriye göre grupla
+    grouped_products = {}
+    for product in products:
+        category = product.category or 'Diğer'
+        if category not in grouped_products:
+            grouped_products[category] = []
+        grouped_products[category].append(product)
+
+    return render_template('restaurant_detail.html', restaurant=restaurant, grouped_products=grouped_products)
+
 
 # -------------- Admin: Restoran Yönetimi --------------
 
@@ -1417,18 +1427,29 @@ def api_add_blog_comment(blog_id):
     return jsonify({'message': 'Yorum eklendi'}), 201
 
 @app.route('/api/restaurants/<int:id>')
-def get_restaurant(id):
+def api_restaurant_detail(id):
     restaurant = Restaurant.query.get_or_404(id)
+    products_by_category = {}
+
+    for product in restaurant.products:
+        if product.category not in products_by_category:
+            products_by_category[product.category] = []
+        products_by_category[product.category].append({
+            'name': product.name,
+            'description': product.description
+        })
+
     return jsonify({
         'id': restaurant.id,
         'name': restaurant.name,
         'description': restaurant.description,
-        'city': restaurant.city,
-        'district': restaurant.district,
         'image_url': restaurant.image_url,
-        'latitude': restaurant.latitude,
-        'longitude': restaurant.longitude
+        'address': restaurant.address,
+        'city': restaurant.city,
+        'category': restaurant.category,
+        'products_by_category': products_by_category
     })
+
 
 
 

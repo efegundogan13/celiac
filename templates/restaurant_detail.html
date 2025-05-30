@@ -44,29 +44,26 @@
     </script>
   {% endif %}
 
-  <!-- Ürünler (Restorana Ait) -->
-  {% if restaurant.products %}
+  <!-- Ürünler (Kategoriye Göre Gruplandırılmış) -->
+  {% if grouped_products %}
     <div class="mt-10">
       <h2 class="text-2xl font-bold text-green-700 mb-4">Menüdeki Ürünler</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for product in restaurant.products %}
-          <div class="bg-white p-4 rounded shadow hover:shadow-md transition">
-            <div class="bg-white flex justify-center items-center rounded mb-3 h-40 w-full">
-              <img src="{{ product.image_url }}" class="h-full object-contain" alt="{{ product.name }}">
-            </div>
-            <h3 class="text-lg font-semibold text-green-700">{{ product.name }}</h3>
-            <p class="text-sm text-gray-500">{{ product.category }}</p>
-            <p class="text-gray-700 text-sm mt-2">{{ product.description[:100] }}...</p>
 
-            <!-- ⭐ Favorilere Ekle/Kaldır Butonu -->
-            {% if session.get('user_id') %}
-              <a href="{{ url_for('favorite_product', id=product.id) }}" class="text-yellow-600 hover:underline text-sm mt-2 block">
-                ⭐ Favorilere Ekle/Kaldır
-              </a>
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
+      {% for category, products in grouped_products.items() %}
+        <div class="mb-6">
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ category }}</h3>
+          <ul class="list-disc list-inside text-gray-700 space-y-1">
+            {% for product in products %}
+              <li>
+                <span class="font-medium">{{ product.name }}</span><br>
+                {% if product.description %}
+                  <span class="text-sm text-gray-500">{{ product.description }}</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
     </div>
   {% endif %}
 
@@ -120,7 +117,6 @@
               </form>
             </div>
           {% endif %}
-
         </div>
       {% endfor %}
     {% else %}
