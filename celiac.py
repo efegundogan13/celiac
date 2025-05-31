@@ -1133,7 +1133,7 @@ def nearby_api():
             "name": r.name,
             "description": r.description,
             "city": r.city,
-            "district": r.district,
+            "district": getattr(r, 'district', ''),  # <-- BURASI DÜZELTİLDİ
             "image_url": r.image_url,
             "address": r.address,
             "latitude": float(r.latitude),
@@ -1142,6 +1142,7 @@ def nearby_api():
         })
 
     return jsonify(response_data)
+
 
 
 
