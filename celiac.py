@@ -1460,7 +1460,7 @@ def api_restaurant_detail(id):
         'image_url': restaurant.image_url,
         'address': restaurant.address,
         'city': restaurant.city,
-        'district': restaurant.district,
+        'district': getattr(restaurant, 'district', ''),
         'latitude': restaurant.latitude,
         'longitude': restaurant.longitude,
         'category': restaurant.category,
