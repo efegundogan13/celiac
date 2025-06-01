@@ -379,6 +379,16 @@ def delete_restaurant(id):
 
     restaurant = Restaurant.query.get_or_404(id)
 
+    # İlişkili favorileri sil
+    FavoriteRestaurant.query.filter_by(restaurant_id=restaurant.id).delete()
+
+    # İlişkili yorumları sil (eğer varsa)
+    Comment.query.filter_by(restaurant_id=restaurant.id).delete()
+
+    # Diğer ilişkili veriler (örnek)
+
+    Product.query.filter_by(restaurant_id=restaurant.id).delete()
+
     # Dosya yüklemeyle eklenmişse sunucudan da sil
     if restaurant.is_file_upload:
         try:
@@ -392,6 +402,7 @@ def delete_restaurant(id):
     db.session.commit()
     flash("Restoran silindi.", "success")
     return redirect(url_for('restaurants'))
+
 
 
 @app.route('/admin/product_comment')
@@ -710,16 +721,26 @@ def profile():
         return redirect(url_for('login'))
 
     user_id = session['user_id']
+
     favorite_restaurants = FavoriteRestaurant.query.filter_by(user_id=user_id).all()
     favorite_products = FavoriteProduct.query.filter_by(user_id=user_id).all()
     user_comments = Comment.query.filter_by(user_id=user_id).all()
+
+    # ✅ Eklenen tarifler
+    user_recipes = Recipe.query.filter_by(user_id=user_id).order_by(Recipe.created_at.desc()).all()
+
+    # ✅ Beğenilen bloglar
+    liked_blogs = Blog.query.join(BlogLike).filter(BlogLike.user_id == user_id).order_by(Blog.created_at.desc()).all()
 
     return render_template(
         'profile.html',
         favorite_restaurants=favorite_restaurants,
         favorite_products=favorite_products,
-        user_comments=user_comments
+        user_comments=user_comments,
+        user_recipes=user_recipes,
+        liked_blogs=liked_blogs
     )
+
 
 
 @app.route('/restaurants/<int:restaurant_id>/comment', methods=['POST'])
@@ -1365,6 +1386,18 @@ def user_profile(user_id):
     fav_products = FavoriteProduct.query.filter_by(user_id=user_id).all()
     comments = Comment.query.filter_by(user_id=user_id).all()
 
+    # Eklenen tarifler
+    user_recipes = Recipe.query.filter_by(user_id=user_id).order_by(Recipe.created_at.desc()).all()
+
+    # Beğenilen bloglar
+    liked_blogs = (
+        db.session.query(Blog)
+        .join(BlogLike, BlogLike.blog_id == Blog.id)
+        .filter(BlogLike.user_id == user_id)
+        .order_by(Blog.created_at.desc())
+        .all()
+    )
+
     return jsonify({
         'username': user.username,
         'favorites': {
@@ -1377,8 +1410,25 @@ def user_profile(user_id):
                 'text': c.text,
                 'rating': c.rating
             } for c in comments
+        ],
+        'recipes': [
+            {
+                'id': recipe.id,
+                'title': recipe.title,
+                'content': recipe.content,
+                'image_url': recipe.image_url
+            } for recipe in user_recipes
+        ],
+        'liked_blogs': [
+            {
+                'id': blog.id,
+                'title': blog.title,
+                'content': blog.content,
+                'image_url': blog.image_url
+            } for blog in liked_blogs
         ]
     })
+
 
 @app.route('/api/search')
 def api_search():
