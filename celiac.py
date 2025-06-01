@@ -1197,7 +1197,8 @@ def nearby_api():
             "address": r.address,
             "latitude": float(r.latitude),
             "longitude": float(r.longitude),
-            "distance_km": round(d, 2)
+            "distance_km": round(d, 2),
+            'is_file_upload': r.is_file_upload
         })
 
     return jsonify(response_data)
