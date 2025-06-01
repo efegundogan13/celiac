@@ -1135,6 +1135,7 @@ def api_restaurants():
             'name': r.name,
             'description': r.description,
             'city': r.city,
+            "category": r.category,
             'district': '',  # Eğer varsa: r.district
             'image_url': request.host_url.rstrip('/') + r.image_url if r.image_url.startswith('/static') else r.image_url,  # 🔧 Değiştirildi
             'is_file_upload': r.is_file_upload,
