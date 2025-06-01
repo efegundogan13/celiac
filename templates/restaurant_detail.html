@@ -11,12 +11,19 @@
 
   <h1 class="text-3xl font-bold text-green-700 mb-6">{{ restaurant.name }}</h1>
 
+  <!-- Restoran Görseli -->
+  {% if restaurant.image_url %}
+    <div class="bg-white flex justify-center items-center rounded mb-4 w-full h-64">
+      {% if restaurant.is_file_upload %}
+        <img src="{{ restaurant.image_url }}" class="h-full object-contain" alt="{{ restaurant.name }}">
+      {% else %}
+        <img src="{{ restaurant.image_url }}" class="h-full object-contain" alt="{{ restaurant.name }}">
+      {% endif %}
+    </div>
+  {% endif %}
+
   <!-- Restoran Bilgileri -->
   <div class="bg-white p-6 rounded shadow mb-8">
-    <div class="bg-white flex justify-center items-center rounded mb-4 w-full h-64">
-      <img src="{{ restaurant.image_url }}" class="h-full object-contain" alt="{{ restaurant.name }}">
-    </div>
-
     <p class="text-gray-600 mb-2"><strong>Şehir:</strong> {{ restaurant.city }}</p>
     <p class="text-gray-600 mb-2"><strong>Kategori:</strong> {{ restaurant.category }}</p>
     <p class="text-gray-600 mb-4"><strong>Adres:</strong> {{ restaurant.address }}</p>

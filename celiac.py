@@ -45,6 +45,7 @@ class Restaurant(db.Model):
     city = db.Column(db.String(50), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     image_url = db.Column(db.String(200))
+    is_file_upload = db.Column(db.Boolean, default=False)
     description = db.Column(db.Text)
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
@@ -279,6 +280,12 @@ def restaurant_detail(id):
 
 # -------------- Admin: Restoran Yönetimi --------------
 
+import os
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads', 'logos')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 @app.route('/admin/add-restaurant', methods=['GET', 'POST'])
 def add_restaurant():
     if not session.get('is_admin'):
@@ -286,12 +293,24 @@ def add_restaurant():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
+        image_url = request.form.get('image_url', '')
+        image_file = request.files.get('image_file')
+        is_file_upload = False
+
+        if image_file and image_file.filename != '':
+            filename = secure_filename(image_file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            image_file.save(filepath)
+            image_url = f'/static/uploads/logos/{filename}'
+            is_file_upload = True
+
         new_restaurant = Restaurant(
             name=request.form['name'],
             address=request.form['address'],
             city=request.form['city'],
             category=request.form['category'],
-            image_url=request.form['image_url'],
+            image_url=image_url,
+            is_file_upload=is_file_upload,
             description=request.form['description'],
             latitude=request.form.get('latitude', type=float),
             longitude=request.form.get('longitude', type=float)
@@ -303,6 +322,7 @@ def add_restaurant():
 
     return render_template('admin/add_restaurant.html')
 
+
 @app.route('/admin/edit-restaurant/<int:id>', methods=['GET', 'POST'])
 def edit_restaurant(id):
     if not session.get('is_admin'):
@@ -310,20 +330,40 @@ def edit_restaurant(id):
         return redirect(url_for('login'))
 
     restaurant = Restaurant.query.get_or_404(id)
+
     if request.method == 'POST':
         restaurant.name = request.form['name']
         restaurant.address = request.form['address']
         restaurant.city = request.form['city']
         restaurant.category = request.form['category']
-        restaurant.image_url = request.form['image_url']
         restaurant.description = request.form['description']
         restaurant.latitude = request.form.get('latitude', type=float)
         restaurant.longitude = request.form.get('longitude', type=float)
+
+        new_image_url = request.form.get('image_url', '')
+        new_image_file = request.files.get('image_file')
+
+        if new_image_file and new_image_file.filename != '':
+            filename = secure_filename(new_image_file.filename)
+            upload_path = os.path.join(app.root_path, 'static', 'uploads', 'logos')
+            os.makedirs(upload_path, exist_ok=True)
+            file_path = os.path.join(upload_path, filename)
+            new_image_file.save(file_path)
+
+            restaurant.image_url = f'/static/uploads/logos/{filename}'
+            restaurant.is_file_upload = True
+
+        elif new_image_url:
+            restaurant.image_url = new_image_url
+            restaurant.is_file_upload = False
+
+        # Hiçbir şey girilmediyse eski logo korunur
         db.session.commit()
         flash("Restoran güncellendi.", "success")
         return redirect(url_for('restaurants'))
 
     return render_template('admin/edit_restaurant.html', restaurant=restaurant)
+
 
 @app.route('/admin/delete-restaurant/<int:id>', methods=['POST'])
 def delete_restaurant(id):
@@ -332,10 +372,21 @@ def delete_restaurant(id):
         return redirect(url_for('login'))
 
     restaurant = Restaurant.query.get_or_404(id)
+
+    # Dosya yüklemeyle eklenmişse sunucudan da sil
+    if restaurant.is_file_upload:
+        try:
+            file_path = os.path.join(app.root_path, restaurant.image_url.lstrip('/'))
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print("Dosya silme hatası:", e)
+
     db.session.delete(restaurant)
     db.session.commit()
     flash("Restoran silindi.", "success")
     return redirect(url_for('restaurants'))
+
 
 @app.route('/admin/product_comment')
 def admin_product_comments():
