@@ -50,6 +50,12 @@ class Restaurant(db.Model):
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
 
+    @property
+    def image_full_url(self):
+        if self.is_file_upload and self.image_url:
+            return request.host_url.rstrip('/') + self.image_url
+        return self.image_url
+
     products = db.relationship('Product', backref='restaurant', lazy=True)
 
 class Product(db.Model):
@@ -1130,12 +1136,14 @@ def api_restaurants():
             'description': r.description,
             'city': r.city,
             'district': '',  # Eğer varsa: r.district
-            'image_url': r.image_url,
+            'image_url': r.image_full_url,  # 🔧 Değiştirildi
+            'is_file_upload': r.is_file_upload,
             'latitude': r.latitude,
             'longitude': r.longitude
         }
         for r in restaurants
     ])
+
 
 
 @app.route('/api/restaurants/<int:restaurant_id>/products')
