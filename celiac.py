@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # generate_password_hash: Parolayı hash'leyerek veritabanına güvenli bir şekilde kaydeder.
 # check_password_hash: Kullanıcının girdiği şifrenin hashlenmiş versiyonla eşleşip eşleşmediğini kontrol eder.
 import os
+from flask_mail import Mail
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -22,6 +23,31 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_key")
 
 db = SQLAlchemy(app)
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = os.environ.get("MAIL_USE_TLS", "True") == "True"
+app.config['MAIL_USE_SSL'] = os.environ.get("MAIL_USE_SSL", "False") == "True"
+app.config['MAIL_USERNAME'] = os.environ.get("MAIL_USERNAME")
+app.config['MAIL_PASSWORD'] = os.environ.get("MAIL_PASSWORD")
+app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
+
+mail = Mail(app)
+print("Mail:", app.config['MAIL_USERNAME'])
+print("Şifre:", app.config['MAIL_PASSWORD'])
+
+from flask_mail import Message
+from itsdangerous import URLSafeTimedSerializer
+from flask import url_for
+
+s = URLSafeTimedSerializer(app.secret_key)
+
+def send_confirmation_email(user_email):
+    token = s.dumps(user_email, salt='email-confirm')
+    confirm_url = url_for('confirm_email', token=token, _external=True)
+    msg = Message("Glutasyon Üyeliğinizi Doğrulayın",
+                  recipients=[user_email],
+                  body=f"Merhaba! Kaydınızı tamamlamak için bu linke tıklayın:\n\n{confirm_url}")
+    mail.send(msg)
 
 # ------------------ MODELLER ------------------
 
@@ -31,6 +57,7 @@ class User(db.Model):
     username = db.Column(db.String(50), nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    confirmed = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -57,6 +84,18 @@ class Restaurant(db.Model):
         return self.image_url
 
     products = db.relationship('Product', backref='restaurant', lazy=True)
+
+from datetime import datetime
+import pytz
+
+from pytz import timezone, utc
+
+def to_turkey_time(dt):
+    if dt.tzinfo is None:
+        dt = utc.localize(dt)
+    return dt.astimezone(timezone('Europe/Istanbul'))
+
+
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -126,8 +165,6 @@ class Blog(db.Model):
     likes = db.relationship('BlogLike', back_populates='blog', cascade='all, delete', passive_deletes=True)
 
 
-
-
 class BlogComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=False)
@@ -162,6 +199,10 @@ class Recipe(db.Model):
 
     user = db.relationship('User', backref='recipes')
 
+
+
+
+
 # ------------------ ROUTELAR ------------------
 
 @app.route('/')
@@ -170,43 +211,77 @@ def index():
 
 # -------------- Giriş / Kayıt / Çıkış --------------
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        email = request.form['email']
-        username = request.form['username']
-        password = request.form['password']
+    if request.method == "POST":
+        email = request.form["email"]
+        username = request.form["username"]
+        password = request.form["password"]
 
-        if User.query.filter_by(email=email).first():
+        if not email or not username or not password:
+            flash("Tüm alanlar zorunludur.", "warning")
+            return redirect(url_for("register"))
+
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
             flash("Bu e-posta zaten kayıtlı.", "danger")
-            return redirect(url_for('register'))
+            return redirect(url_for("register"))
 
         user = User(email=email, username=username)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        flash("Kayıt başarılı. Giriş yapabilirsiniz.", "success")
-        return redirect(url_for('login'))
 
-    return render_template('register.html')
+        send_confirmation_email(email)
+        flash("Kaydınız başarılı! Lütfen e-postanızı onaylayın.", "success")
+        return redirect(url_for("login"))
 
-@app.route('/login', methods=['GET', 'POST'])
+    return render_template("register.html")
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
 
         user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password):
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['is_admin'] = (user.id == 1)
-            flash(f"Hoş geldin {user.username}!", "success")
-            return redirect(url_for('index'))
-        else:
-            flash("E-posta veya şifre hatalı.", "danger")
+        if not user:
+            flash("Kullanıcı bulunamadı.", "danger")
+            return redirect(url_for("login"))
 
-    return render_template('login.html')
+        if not user.check_password(password):
+            flash("Şifre hatalı.", "danger")
+            return redirect(url_for("login"))
+
+        if not user.confirmed:
+            flash("Lütfen önce e-postanızı onaylayın.", "warning")
+            return redirect(url_for("login"))
+
+        # Kullanıcı girişi başarılı
+        session["user_id"] = user.id
+        session["username"] = user.username
+        session["is_admin"] = user.is_admin
+        flash("Giriş başarılı!", "success")
+        return redirect(url_for("profile"))
+
+    return render_template("login.html")
+
+
+@app.route("/confirm/<token>")
+def confirm_email(token):
+    try:
+        email = s.loads(token, salt='email-confirm', max_age=3600)
+    except:
+        return "Link geçersiz veya süresi dolmuş.", 400
+
+    user = User.query.filter_by(email=email).first_or_404()
+    if user.confirmed:
+        return "Zaten onaylamışsınız."
+
+    user.confirmed = True
+    db.session.commit()
+    return "E-posta başarıyla onaylandı. Artık giriş yapabilirsiniz."
+
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -268,10 +343,21 @@ def restaurants():
 
 
 
+from pytz import timezone, utc
+
+def to_turkey_time(dt):
+    if dt.tzinfo is None:
+        dt = utc.localize(dt)
+    return dt.astimezone(timezone('Europe/Istanbul'))
+
 @app.route('/restaurants/<int:id>')
 def restaurant_detail(id):
     restaurant = Restaurant.query.get_or_404(id)
     products = Product.query.filter_by(restaurant_id=id).all()
+
+    # Yorumların saatini Türkiye saatine çevir
+    for comment in restaurant.comments:
+        comment.created_at = to_turkey_time(comment.created_at)
 
     # Ürünleri kategoriye göre grupla
     grouped_products = {}
@@ -281,7 +367,12 @@ def restaurant_detail(id):
             grouped_products[category] = []
         grouped_products[category].append(product)
 
-    return render_template('restaurant_detail.html', restaurant=restaurant, grouped_products=grouped_products)
+    return render_template(
+        'restaurant_detail.html',
+        restaurant=restaurant,
+        grouped_products=grouped_products
+    )
+
 
 
 # -------------- Admin: Restoran Yönetimi --------------
@@ -726,6 +817,8 @@ def profile():
     favorite_products = FavoriteProduct.query.filter_by(user_id=user_id).all()
     user_comments = Comment.query.filter_by(user_id=user_id).all()
 
+    for comment in user_comments:
+        comment.created_at = to_turkey_time(comment.created_at)
     # ✅ Eklenen tarifler
     user_recipes = Recipe.query.filter_by(user_id=user_id).order_by(Recipe.created_at.desc()).all()
 
@@ -950,6 +1043,8 @@ def blogs_by_category(category_id):
 def blog_detail(blog_id):
     blog = Blog.query.get_or_404(blog_id)
     categories = BlogCategory.query.all()
+    for comment in blog.comments:
+        comment.created_at = to_turkey_time(comment.created_at)
     return render_template('blog_detail.html', blog=blog, categories=categories)
 
 @app.route('/blogs/<int:blog_id>/comment', methods=['POST'])
