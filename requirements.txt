@@ -12,3 +12,6 @@ werkzeug
 
 kivy
 kivymd
+
+Flask-Mail
+
