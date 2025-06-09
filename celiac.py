@@ -40,6 +40,8 @@ from itsdangerous import URLSafeTimedSerializer
 from flask import url_for
 
 s = URLSafeTimedSerializer(app.secret_key)
+def generate_confirmation_token(email):
+    return s.dumps(email, salt='email-confirm')
 
 def send_confirmation_email(user_email):
     token = s.dumps(user_email, salt='email-confirm')
@@ -1811,7 +1813,7 @@ def recipe_add():
             <p>Hesabınızı doğrulamak için lütfen aşağıdaki bağlantıya tıklayın:</p>
             <a href="{confirm_url}">{confirm_url}</a>
         '''
-        send_email(email, "Glutasyon E-Posta Doğrulama", html)
+        send_confirmation_email(email, "Glutasyon E-Posta Doğrulama", html)
 
         return jsonify({'success': True, 'message': 'Kayıt başarılı. Lütfen e-postanızı doğrulayın.'}), 201
 
