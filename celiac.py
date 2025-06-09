@@ -301,19 +301,23 @@ def api_login():
 
         user = User.query.filter_by(username=username).first()
 
-        if user and user.check_password(password):
-            return jsonify({
-                'message': 'Giriş başarılı!',
-                'user_id': user.id,
-                'username': user.username,
-                'confirmed': user.confirmed  # 🔥 Bu satır mobil için kritik
-            }), 200
-        else:
+        if not user or not user.check_password(password):
             return jsonify({'error': 'Giriş başarısız!'}), 401
+
+        if not user.confirmed:
+            return jsonify({'error': 'E-posta adresinizi doğrulamanız gerekiyor.'}), 403
+
+        return jsonify({
+            'message': 'Giriş başarılı!',
+            'user_id': user.id,
+            'username': user.username,
+            'confirmed': user.confirmed
+        }), 200
 
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'error': 'Sunucu hatası'}), 500
+
 
 
 
