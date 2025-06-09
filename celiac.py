@@ -1804,16 +1804,16 @@ def api_register():
     db.session.commit()
 
         # Doğrulama maili gönder
-        token = generate_confirmation_token(email)
-        confirm_url = url_for('confirm_email', token=token, _external=True)
-        html = f'''
-            <p>Glutasyon'a kayıt olduğunuz için teşekkürler!</p>
-            <p>Hesabınızı doğrulamak için lütfen aşağıdaki bağlantıya tıklayın:</p>
-            <a href="{confirm_url}">{confirm_url}</a>
-        '''
-        send_confirmation_email(email, "Glutasyon E-Posta Doğrulama", html)
+    token = generate_confirmation_token(email)
+    confirm_url = url_for('confirm_email', token=token, _external=True)
+    html = f'''
+        <p>Glutasyon'a kayıt olduğunuz için teşekkürler!</p>
+        <p>Hesabınızı doğrulamak için lütfen aşağıdaki bağlantıya tıklayın:</p>
+        <a href="{confirm_url}">{confirm_url}</a>
+    '''
+    send_confirmation_email(email, "Glutasyon E-Posta Doğrulama", html)
 
-        return jsonify({'success': True, 'message': 'Kayıt başarılı. Lütfen e-postanızı doğrulayın.'}), 201
+    return jsonify({'success': True, 'message': 'Kayıt başarılı. Lütfen e-postanızı doğrulayın.'}), 201
 
 
 # ------------------ BAŞLAT ------------------
