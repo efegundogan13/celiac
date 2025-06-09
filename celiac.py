@@ -1787,33 +1787,40 @@ def recipe_add():
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()
+
     email = data.get('email')
     username = data.get('username')
     password = data.get('password')
 
     if not email or not username or not password:
-        return jsonify({'success': False, 'message': 'Tüm alanlar zorunludur'}), 400
+        return jsonify({'success': False, 'message': 'Tüm alanlar gereklidir.'}), 400
 
-        # Aynı kullanıcı var mı?
-    if User.query.filter((User.email == email) | (User.username == username)).first():
-        return jsonify({'success': False, 'message': 'Bu e-posta veya kullanıcı adı zaten kayıtlı'}), 400
+    # Kullanıcı zaten var mı kontrolü
+    existing_user = User.query.filter((User.email == email) | (User.username == username)).first()
+    if existing_user:
+        return jsonify({'success': False, 'message': 'Bu e-posta veya kullanıcı adı zaten kayıtlı.'}), 400
 
+    # Parola hashleme
     hashed_password = generate_password_hash(password)
-    user = User(email=email, username=username, password=hashed_password, confirmed=False)
+
+    # Yeni kullanıcı oluştur
+    user = User(email=email, username=username, password_hash=hashed_password, confirmed=False)
     db.session.add(user)
     db.session.commit()
 
-        # Doğrulama maili gönder
+    # Mail doğrulama bağlantısı oluştur ve gönder
     token = generate_confirmation_token(email)
     confirm_url = url_for('confirm_email', token=token, _external=True)
-    html = f'''
-        <p>Glutasyon'a kayıt olduğunuz için teşekkürler!</p>
-        <p>Hesabınızı doğrulamak için lütfen aşağıdaki bağlantıya tıklayın:</p>
-        <a href="{confirm_url}">{confirm_url}</a>
-    '''
-    send_confirmation_email(email, "Glutasyon E-Posta Doğrulama", html)
+    html = f"""
+        <p>Glutasyon’a hoş geldiniz {username},</p>
+        <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
+        <p><a href="{confirm_url}">{confirm_url}</a></p>
+        <p>Teşekkürler!</p>
+    """
+    send_confirmation_email(email, "Glutasyon Hesap Doğrulama", html)
 
     return jsonify({'success': True, 'message': 'Kayıt başarılı. Lütfen e-postanızı doğrulayın.'}), 201
+
 
 
 # ------------------ BAŞLAT ------------------
