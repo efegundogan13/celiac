@@ -1795,31 +1795,21 @@ def api_register():
     if not email or not username or not password:
         return jsonify({'success': False, 'message': 'Tüm alanlar gereklidir.'}), 400
 
-    # Kullanıcı zaten var mı kontrolü
     existing_user = User.query.filter((User.email == email) | (User.username == username)).first()
     if existing_user:
         return jsonify({'success': False, 'message': 'Bu e-posta veya kullanıcı adı zaten kayıtlı.'}), 400
 
-    # Parola hashleme
     hashed_password = generate_password_hash(password)
 
-    # Yeni kullanıcı oluştur
     user = User(email=email, username=username, password_hash=hashed_password, confirmed=False)
     db.session.add(user)
     db.session.commit()
 
-    # Mail doğrulama bağlantısı oluştur ve gönder
-    token = generate_confirmation_token(email)
-    confirm_url = url_for('confirm_email', token=token, _external=True)
-    html = f"""
-        <p>Glutasyon’a hoş geldiniz {username},</p>
-        <p>Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:</p>
-        <p><a href="{confirm_url}">{confirm_url}</a></p>
-        <p>Teşekkürler!</p>
-    """
-    send_confirmation_email(email, "Glutasyon Hesap Doğrulama", html)
+    # ✅ Bu satır, senin tanımladığın fonksiyonla birebir uyumlu:
+    send_confirmation_email(email)
 
     return jsonify({'success': True, 'message': 'Kayıt başarılı. Lütfen e-postanızı doğrulayın.'}), 201
+
 
 
 
