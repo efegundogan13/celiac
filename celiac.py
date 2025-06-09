@@ -1779,31 +1779,29 @@ def recipe_add():
         print('Tarif ekleme hatası:', e)
         return jsonify({'error': 'Sunucu hatası'}), 500
 
-    def generate_confirmation_token(email):
-        return s.dumps(email, salt='email-confirm')
 
-    def send_email(to, subject, html):
-        msg = Message(subject, recipients=[to], html=html, sender='glutasyonproje@gmail.com')
-        mail.send(msg)
 
-    @app.route('/api/register', methods=['POST'])
-    def api_register():
-        data = request.get_json()
-        email = data.get('email')
-        username = data.get('username')
-        password = data.get('password')
 
-        if not email or not username or not password:
-            return jsonify({'success': False, 'message': 'Tüm alanlar zorunludur'}), 400
+
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    email = data.get('email')
+    username = data.get('username')
+    password = data.get('password')
+
+    if not email or not username or not password:
+        return jsonify({'success': False, 'message': 'Tüm alanlar zorunludur'}), 400
 
         # Aynı kullanıcı var mı?
-        if User.query.filter((User.email == email) | (User.username == username)).first():
-            return jsonify({'success': False, 'message': 'Bu e-posta veya kullanıcı adı zaten kayıtlı'}), 400
+    if User.query.filter((User.email == email) | (User.username == username)).first():
+        return jsonify({'success': False, 'message': 'Bu e-posta veya kullanıcı adı zaten kayıtlı'}), 400
 
-        hashed_password = generate_password_hash(password)
-        user = User(email=email, username=username, password=hashed_password, confirmed=False)
-        db.session.add(user)
-        db.session.commit()
+    hashed_password = generate_password_hash(password)
+    user = User(email=email, username=username, password=hashed_password, confirmed=False)
+    db.session.add(user)
+    db.session.commit()
 
         # Doğrulama maili gönder
         token = generate_confirmation_token(email)
