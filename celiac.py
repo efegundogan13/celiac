@@ -300,13 +300,19 @@ def api_login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
-            return jsonify({'message': 'Giriş başarılı!', 'user_id': user.id}), 200
+            return jsonify({
+                'message': 'Giriş başarılı!',
+                'user_id': user.id,
+                'username': user.username,
+                'confirmed': user.confirmed  # 🔥 Bu satır mobil için kritik
+            }), 200
         else:
             return jsonify({'error': 'Giriş başarısız!'}), 401
 
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'error': 'Sunucu hatası'}), 500
+
 
 
 @app.route('/logout')
@@ -1309,7 +1315,7 @@ def nearby_api():
             "name": r.name,
             "description": r.description,
             "city": r.city,
-            "district": getattr(r, 'district', ''),  # <-- BURASI DÜZELTİLDİ
+            "district": getattr(r, 'district', ''),  # <-- BURArSI DÜZELTİLDİ
             "image_url": r.image_url,
             "address": r.address,
             "latitude": float(r.latitude),
@@ -1770,6 +1776,30 @@ def recipe_add():
     except Exception as e:
         print('Tarif ekleme hatası:', e)
         return jsonify({'error': 'Sunucu hatası'}), 500
+
+    @app.route('/api/register', methods=['POST'])
+    def api_register():
+        data = request.json
+        email = data['email']
+        username = data['username']
+        password = generate_password_hash(data['password'])
+
+        # Aynı kullanıcı varsa kontrol
+        if User.query.filter((User.email == email) | (User.username == username)).first():
+            return jsonify({'success': False, 'message': 'Bu e-posta veya kullanıcı adı zaten kullanılıyor.'}), 400
+
+        user = User(email=email, username=username, password=password, is_verified=False)
+        db.session.add(user)
+        db.session.commit()
+
+        # E-posta doğrulama bağlantısı gönder
+        token = generate_confirmation_token(email)
+        confirm_url = url_for('confirm_email', token=token, _external=True)
+        html = render_template('email_confirmation.html', confirm_url=confirm_url)
+        send_email(email, "E-posta Doğrulama", html)
+
+        return jsonify({'success': True, 'message': 'Kayıt başarılı. Lütfen e-postanızı kontrol edin.'})
+
 
 # ------------------ BAŞLAT ------------------
 
