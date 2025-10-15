@@ -435,7 +435,11 @@ def api_login():
         if not username or not password:
             return jsonify({'error': 'Kullanıcı adı ve şifre gerekli!'}), 400
 
-        user = User.query.filter_by(username=username).first()
+        # Email formatında mı kontrol et
+        if '@' in username:
+            user = User.query.filter_by(email=username).first()
+        else:
+            user = User.query.filter_by(username=username).first()
 
         if not user or not user.check_password(password):
             return jsonify({'error': 'Giriş başarısız!'}), 401
