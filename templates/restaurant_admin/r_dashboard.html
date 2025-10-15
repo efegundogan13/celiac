@@ -1,0 +1,49 @@
+<!-- templates/restaurant_admin/r_dashboard.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Restoran Paneli - Glutasyon</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Restoran Paneli</h1>
+
+    <h2>{{ restaurant.name }}</h2>
+    {% if restaurant.logo_path %}
+        <img src="{{ url_for('static', filename=restaurant.logo_path.split('static/')[-1]) }}"
+             alt="Logo" width="120">
+    {% endif %}
+
+    <p><strong>Açıklama:</strong> {{ restaurant.description or "Açıklama eklenmemiş." }}</p>
+    <p><strong>Adres:</strong> {{ restaurant.address }}</p>
+    <p><strong>Şehir:</strong> {{ restaurant.city }}</p>
+    <p><strong>Kategori:</strong> {{ restaurant.category }}</p>
+
+    <a href="{{ url_for('restaurant_bp.edit_restaurant') }}">Restoran Bilgilerini Düzenle</a> |
+    <a href="{{ url_for('restaurant_bp.add_product') }}">Ürün Ekle</a> |
+    <a href="{{ url_for('restaurant_bp.view_comments') }}">Yorumları Gör</a> |
+    <a href="{{ url_for('restaurant_bp.view_likes') }}">Beğenileri Gör</a>
+
+    <hr>
+
+    <h3>Ürünler</h3>
+    {% if products %}
+        <ul>
+            {% for product in products %}
+                <li>
+                    <strong>{{ product.name }}</strong> - {{ product.category }}
+                    {% if product.image %}
+                        <br>
+                        <img src="{{ url_for('static', filename='uploads/' + product.image) }}"
+                             alt="{{ product.name }}" width="100">
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Henüz ürün eklenmemiş.</p>
+    {% endif %}
+
+</body>
+</html>

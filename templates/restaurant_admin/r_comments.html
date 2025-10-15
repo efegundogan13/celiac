@@ -1,0 +1,42 @@
+<!-- templates/restaurant_admin/r_comments.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yorumlar - Restoran Paneli</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Restoran Yorumları</h1>
+
+    {% if comments %}
+        <table border="1" cellpadding="8" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Kullanıcı</th>
+                    <th>Yorum</th>
+                    <th>Puan</th>
+                    <th>Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comment in comments %}
+                    <tr>
+                        <td>{{ comment.user.username if comment.user else "Anonim" }}</td>
+                        <td>{{ comment.text }}</td>
+                        <td>{{ comment.rating }}/5</td>
+                        <td>{{ comment.created_at.strftime('%Y-%m-%d %H:%M') if comment.created_at else "" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Henüz yorum yapılmamış.</p>
+    {% endif %}
+
+    <br>
+    <a href="{{ url_for('restaurant_bp.restaurant_dashboard') }}">← Geri Dön</a>
+
+</body>
+</html>

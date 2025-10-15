@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Favori Ürünler{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold text-green-700 mb-6">Favori Ürünler</h1>
+
+  <table class="w-full border border-gray-300 rounded shadow">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="p-2">Kullanıcı ID</th>
+        <th class="p-2">Ürün Adı</th>
+        <th class="p-2">Favori ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fav in favorites %}
+      <tr class="border-t border-gray-300">
+        <td class="p-2">{{ fav.user_id }}</td>
+        <td class="p-2">{{ fav.product.name }}</td>
+        <td class="p-2">#{{ fav.id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

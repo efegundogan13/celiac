@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Ürünü Düzenle{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-6">Ürünü Düzenle</h1>
+  <form method="POST">
+    <label for="name" class="block font-semibold mb-1">Ürün İsmi</label>
+    <input type="text" id="name" name="name" value="{{ product.name }}" class="w-full border p-2 rounded mb-4">
+
+    <label for="category" class="block font-semibold mb-1">Kategori</label>
+    <input type="text" id="category" name="category" value="{{ product.category }}" class="w-full border p-2 rounded mb-4">
+
+    <label for="image_url" class="block font-semibold mb-1">Görsel URL</label>
+    <input type="text" id="image_url" name="image_url" value="{{ product.image_url or '' }}" class="w-full border p-2 rounded mb-4">
+
+    <label for="description" class="block font-semibold mb-1">Açıklama</label>
+    <textarea id="description" name="description" class="w-full border p-2 rounded mb-4">{{ product.description }}</textarea>
+
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Güncelle</button>
+  </form>
+
+  <!-- SİLME BUTONU AYRI FORMDA! -->
+  <form action="{{ url_for('delete_product', id=product.id) }}" method="POST" class="mt-4" onsubmit="return confirm('Bu ürünü silmek istediğinizden emin misiniz?');">
+    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Sil</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+<!-- templates/restaurant_admin/r_likes.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Beğeniler - Restoran Paneli</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Restoran Beğenileri</h1>
+
+    {% if likes %}
+        <p><strong>{{ likes | length }}</strong> kişi restoranınızı beğenmiş.</p>
+
+        <ul>
+            {% for like in likes %}
+                <li>{{ like.user.username if like.user else "Anonim" }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Henüz beğeni yok.</p>
+    {% endif %}
+
+    <br>
+    <a href="{{ url_for('restaurant_bp.restaurant_dashboard') }}">← Geri Dön</a>
+
+</body>
+</html>

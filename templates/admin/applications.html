@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Restoran Başvuruları{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-6">Restoran Başvuruları</h1>
+
+  {% if applications %}
+  <table class="w-full border-collapse border border-gray-300">
+    <thead>
+      <tr class="bg-gray-200 text-left">
+        <th class="p-2 border">Kullanıcı</th>
+        <th class="p-2 border">Restoran</th>
+        <th class="p-2 border">Şehir</th>
+        <th class="p-2 border">Durum</th>
+        <th class="p-2 border">İşlemler</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for app in applications %}
+      <tr class="border-t hover:bg-gray-50">
+        <td class="p-2 border">{{ app.user.username }}</td>
+        <td class="p-2 border">{{ app.name }}</td>
+        <td class="p-2 border">{{ app.city }}</td>
+        <td class="p-2 border">
+          {% if app.status == "pending" %}
+            <span class="px-2 py-1 text-sm bg-yellow-100 text-yellow-800 rounded">Beklemede</span>
+          {% elif app.status == "approved" %}
+            <span class="px-2 py-1 text-sm bg-green-100 text-green-800 rounded">Onaylandı</span>
+          {% elif app.status == "rejected" %}
+            <span class="px-2 py-1 text-sm bg-red-100 text-red-800 rounded">Reddedildi</span>
+          {% endif %}
+        </td>
+        <td class="p-2 border">
+          {% if app.status == "pending" %}
+          <form method="POST" action="{{ url_for('approve_application', app_id=app.id) }}" class="inline">
+            <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">Onayla</button>
+          </form>
+          <form method="POST" action="{{ url_for('reject_application', app_id=app.id) }}" class="inline ml-2">
+            <button class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">Reddet</button>
+          </form>
+          {% else %}
+            <span class="text-gray-500 italic">İşlem yapıldı</span>
+          {% endif %}
+          <!-- Detay Linki Eklendi -->
+          <a href="{{ url_for('admin_application_detail', app_id=app.id) }}" class="text-blue-600 underline ml-2">Detay</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-gray-600">Henüz başvuru yok.</p>
+  {% endif %}
+</div>
+{% endblock %}

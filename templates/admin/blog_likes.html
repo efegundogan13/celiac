@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Blog Beğenileri{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold text-green-700 mb-6">Blog Beğenileri</h1>
+
+  <table class="w-full border border-gray-300 rounded shadow">
+    <thead class="bg-gray-100 text-left">
+      <tr>
+        <th class="p-2">Kullanıcı</th>
+        <th class="p-2">Blog Başlığı</th>
+        <th class="p-2">Beğeni ID</th>
+        <th class="p-2">Beğeni İsmi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for like in likes %}
+      <tr class="border-t border-gray-300">
+        <td class="p-2">{{ like.user.username }}</td>
+        <td class="p-2">{{ like.blog.title }}</td>
+        <td class="p-2">#{{ like.id }}</td>
+        <td class="p-2">{{ like.user.username }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

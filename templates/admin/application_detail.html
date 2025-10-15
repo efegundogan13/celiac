@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Restoran Başvurusu Detayı{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">{{ application.name }}</h1>
+<ul class="mb-6">
+  <li><strong>Adres:</strong> {{ application.address }}</li>
+  <li><strong>Şehir:</strong> {{ application.city }}</li>
+  <li><strong>Kategori:</strong> {{ application.category }}</li>
+  <li><strong>Telefon:</strong> {{ application.phone }}</li>
+  <li><strong>Email:</strong> {{ application.contact_email }}</li>
+  <li><strong>Konum:</strong>
+    {% if application.latitude and application.longitude %}
+      <a href="https://www.google.com/maps?q={{ application.latitude }},{{ application.longitude }}" target="_blank">
+        {{ application.latitude }}, {{ application.longitude }}
+      </a>
+    {% else %}
+      Konum Yok
+    {% endif %}
+  </li>
+  <li><strong>Açıklama:</strong> {{ application.description }}</li>
+  <li><strong>Durum:</strong> {{ application.status }}</li>
+  <li><strong>Başvuru Tarihi:</strong> {{ application.created_at.strftime("%d.%m.%Y %H:%M") }}</li>
+</ul>
+
+<h2 class="text-xl font-semibold mb-2">Ürünler</h2>
+<ul>
+  {% for product in application.products %}
+    <li class="mb-2">
+      <strong>{{ product.name }}</strong> - {{ product.category }}
+      <br>
+      <span class="text-gray-600">{{ product.description }}</span>
+    </li>
+  {% endfor %}
+</ul>
+
+<div class="mt-6 flex gap-4">
+  <form method="POST" action="{{ url_for('approve_application', app_id=application.id) }}">
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Onayla</button>
+  </form>
+  <form method="POST" action="{{ url_for('reject_application', app_id=application.id) }}">
+    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Reddet</button>
+  </form>
+</div>
+{% endblock %}

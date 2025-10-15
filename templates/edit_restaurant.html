@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Restoran Düzenle{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold mb-4 text-green-700">Restoranı Düzenle</h1>
+
+  <form method="POST" class="space-y-4">
+    <input type="text" name="name" value="{{ restaurant.name }}" class="w-full p-2 border rounded" required>
+    <input type="text" name="address" value="{{ restaurant.address }}" class="w-full p-2 border rounded" required>
+    <input type="text" name="city" value="{{ restaurant.city }}" class="w-full p-2 border rounded" required>
+    <input type="text" name="category" value="{{ restaurant.category }}" class="w-full p-2 border rounded" required>
+    <input type="text" name="image_url" value="{{ restaurant.image_url }}" class="w-full p-2 border rounded">
+    <textarea name="description" class="w-full p-2 border rounded" rows="4">{{ restaurant.description }}</textarea>
+    <div class="flex gap-4">
+      <input type="text" name="latitude" value="{{ restaurant.latitude }}" class="w-full p-2 border rounded">
+      <input type="text" name="longitude" value="{{ restaurant.longitude }}" class="w-full p-2 border rounded">
+    </div>
+    <button type="submit" class="bg-green-700 text-white px-4 py-2 rounded">Güncelle</button>
+  </form>
+{% endblock %}

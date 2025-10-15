@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Restoran Başvurusu{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto p-6 bg-white shadow rounded">
+  <h1 class="text-2xl font-bold mb-4">Restoran Başvurusu</h1>
+
+  <form method="POST" action="{{ url_for('apply_restaurant') }}">
+    <!-- Restoran Bilgileri -->
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Restoran Adı</label>
+      <input type="text" name="name" class="w-full border p-2 rounded" required>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Adres</label>
+      <textarea name="address" class="w-full border p-2 rounded" required></textarea>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Şehir</label>
+      <input type="text" name="city" class="w-full border p-2 rounded" required>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Kategori</label>
+      <input type="text" name="category" class="w-full border p-2 rounded" required>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Açıklama</label>
+      <textarea name="description" class="w-full border p-2 rounded"></textarea>
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Telefon</label>
+      <input type="text" name="phone" class="w-full border p-2 rounded">
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">İletişim Email</label>
+      <input type="email" name="contact_email" class="w-full border p-2 rounded">
+    </div>
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">Restoran Konumu</label>
+      <div id="map" style="height: 250px;" class="mb-2 rounded border"></div>
+      <input type="hidden" name="latitude" id="latitude">
+      <input type="hidden" name="longitude" id="longitude">
+      <small class="text-gray-600">Haritada konumunu seçmek için tıkla.</small>
+    </div>
+
+    <!-- Ürünler -->
+    <h2 class="text-xl font-semibold mb-2">Ürünler</h2>
+    <div id="products-container"></div>
+    <button type="button" onclick="addProduct()" class="bg-gray-500 text-white px-3 py-1 rounded mb-4">
+      + Ürün Ekle
+    </button>
+
+    <!-- Gönder -->
+    <button type="submit"
+      class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+      Başvuruyu Gönder
+    </button>
+  </form>
+</div>
+
+<!-- Dinamik Ürün Ekleme -->
+<script>
+let productCount = 0;
+function addProduct() {
+  const container = document.getElementById("products-container");
+  const div = document.createElement("div");
+  div.classList.add("border", "p-3", "rounded", "mb-3");
+  div.innerHTML = `
+    <label class="block mb-1 font-medium">Ürün Adı</label>
+    <input type="text" name="products[${productCount}][name]" class="w-full border p-2 rounded" required>
+    <label class="block mt-2 mb-1 font-medium">Kategori</label>
+    <input type="text" name="products[${productCount}][category]" class="w-full border p-2 rounded" required>
+    <label class="block mt-2 mb-1 font-medium">Açıklama</label>
+    <textarea name="products[${productCount}][description]" class="w-full border p-2 rounded"></textarea>
+  `;
+  container.appendChild(div);
+  productCount++;
+}
+</script>
+
+<!-- Leaflet Harita -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var map = L.map('map').setView([39.925533, 32.866287], 6); // Türkiye merkezi
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: 'Harita verisi &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
+  }).addTo(map);
+  var marker;
+  map.on('click', function(e) {
+    if (marker) { map.removeLayer(marker); }
+    marker = L.marker(e.latlng).addTo(map);
+    document.getElementById('latitude').value = e.latlng.lat;
+    document.getElementById('longitude').value = e.latlng.lng;
+  });
+});
+</script>
+{% endblock %}

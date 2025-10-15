@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Tarif Ekle{% endblock %}
+
+{% block content %}
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold text-green-700 mb-6">Yeni Tarif Ekle</h1>
+
+    <form method="POST" class="space-y-4">
+      <input type="text" name="title" placeholder="Tarif Başlığı" class="w-full p-3 border rounded" required>
+      <textarea name="content" placeholder="Tarif İçeriği" class="w-full p-3 border rounded" rows="6" required></textarea>
+      <input type="text" name="image_url" placeholder="Görsel URL (isteğe bağlı)" class="w-full p-3 border rounded">
+
+      <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">
+        Kaydet
+      </button>
+    </form>
+  </div>
+{% endblock %}

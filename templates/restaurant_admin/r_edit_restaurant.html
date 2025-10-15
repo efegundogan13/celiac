@@ -1,0 +1,34 @@
+<!-- templates/restaurant_admin/r_edit_restaurant.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Restoran Bilgilerini Düzenle</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Restoran Bilgilerini Düzenle</h1>
+
+    <form action="{{ url_for('restaurant_bp.edit_restaurant') }}" method="POST" enctype="multipart/form-data">
+        <label for="name">Restoran Adı:</label><br>
+        <input type="text" id="name" name="name" value="{{ restaurant.name }}" required><br><br>
+
+        <label for="logo">Logo Yükle (PNG/JPG/SVG):</label><br>
+        <input type="file" id="logo" name="logo" accept="image/*"><br><br>
+
+        {% if restaurant.logo_path %}
+            <p>Mevcut Logo:</p>
+            <img src="{{ url_for('static', filename=restaurant.logo_path.split('static/')[-1]) }}"
+                 alt="Mevcut Logo" width="120">
+        {% endif %}
+
+        <br><br>
+        <button type="submit">Kaydet</button>
+    </form>
+
+    <br>
+    <a href="{{ url_for('restaurant_bp.restaurant_dashboard') }}">← Geri Dön</a>
+
+</body>
+</html>

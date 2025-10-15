@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Yakındaki Mekanlar{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-green-700 mb-6">Sana En Yakın Glutensiz Mekanlar</h1>
+
+  <div class="bg-white p-6 rounded shadow text-center">
+    <p class="text-gray-700 mb-4">Konumunu kullanarak sana en yakın glutensiz restoranları bulalım.</p>
+
+    <button onclick="getLocation()" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">
+      📍 Konumumu Kullan
+    </button>
+
+    <form id="locationForm" method="POST" class="hidden">
+      <input type="hidden" name="latitude" id="latitude">
+      <input type="hidden" name="longitude" id="longitude">
+    </form>
+  </div>
+
+  {% if top_5 %}
+    <div class="mt-10">
+      <h2 class="text-2xl font-bold text-green-700 mb-4">Sana En Yakın Mekanlar</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for restaurant, distance in top_5 %}
+          <div class="bg-white p-4 rounded shadow hover:shadow-md transition
+                      {% if loop.first %} border-4 border-green-700 {% endif %}">
+
+            {% if loop.first %}
+              <div class="text-xs bg-green-700 text-white px-2 py-1 rounded-full inline-block mb-2">
+                🚀 En Yakın Mekan
+              </div>
+            {% endif %}
+
+            <div class="bg-white flex justify-center items-center rounded mb-3 h-40 w-full">
+              <img src="{{ restaurant.image_url }}" class="h-full object-contain" alt="{{ restaurant.name }}">
+            </div>
+
+            <h3 class="text-lg font-bold text-green-700">{{ restaurant.name }}</h3>
+            <p class="text-gray-600">{{ restaurant.city }}{% if restaurant.district %} - {{ restaurant.district }}{% endif %}</p>
+            <p class="text-sm text-gray-500 mt-2">{{ restaurant.description[:100] }}...</p>
+
+            <p class="text-sm text-gray-700 mt-2 font-semibold">
+              📍 Uzaklık: {{ "%.2f"|format(distance) }} km
+            </p>
+
+            <a href="/restaurants/{{ restaurant.id }}" class="text-green-600 text-sm mt-2 inline-block hover:underline">
+              📄 Detaya Git
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          document.getElementById('latitude').value = position.coords.latitude;
+          document.getElementById('longitude').value = position.coords.longitude;
+          document.getElementById('locationForm').submit();
+        }, function(error) {
+          alert('Konum bilgisi alınamadı.');
+        });
+      } else {
+        alert('Tarayıcınız konum desteği sağlamıyor.');
+      }
+    }
+  </script>
+{% endblock %}

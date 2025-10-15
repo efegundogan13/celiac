@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}{{ restaurant.name }} | Glutensiz Yaşam{% endblock %}
+
+{% block head %}
+  <!-- Leaflet Harita -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block content %}
+
+  <h1 class="text-3xl font-bold text-green-700 mb-6">{{ restaurant.name }}</h1>
+
+  <!-- Restoran Görseli -->
+  {% if restaurant.image_url %}
+    <div class="bg-white flex justify-center items-center rounded mb-4 w-full h-64">
+      {% if restaurant.is_file_upload %}
+        <img src="{{ restaurant.image_url }}" class="h-full object-contain" alt="{{ restaurant.name }}">
+      {% else %}
+        <img src="{{ restaurant.image_url }}" class="h-full object-contain" alt="{{ restaurant.name }}">
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Restoran Bilgileri -->
+  <div class="bg-white p-6 rounded shadow mb-8">
+    <p class="text-gray-600 mb-2"><strong>Şehir:</strong> {{ restaurant.city }}</p>
+    <p class="text-gray-600 mb-2"><strong>Kategori:</strong> {{ restaurant.category }}</p>
+    <p class="text-gray-600 mb-4"><strong>Adres:</strong> {{ restaurant.address }}</p>
+    <p class="text-gray-700">{{ restaurant.description }}</p>
+  </div>
+
+  <!-- Harita -->
+  {% if restaurant.latitude and restaurant.longitude %}
+    <div id="map" class="w-full h-96 rounded shadow mb-10"></div>
+
+    <script>
+      var map = L.map('map').setView([{{ restaurant.latitude }}, {{ restaurant.longitude }}], 15);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap katkıda bulunanlar'
+      }).addTo(map);
+
+      var marker = L.marker([{{ restaurant.latitude }}, {{ restaurant.longitude }}]).addTo(map);
+
+      marker.bindPopup(`
+        <strong>{{ restaurant.name }}</strong><br>
+        {{ restaurant.address }}<br><br>
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ restaurant.latitude }},{{ restaurant.longitude }}" target="_blank" class="text-blue-500 underline">Yol Tarifi Al 🚗</a>
+      `).openPopup();
+    </script>
+  {% endif %}
+
+  <!-- Ürünler (Kategoriye Göre Gruplandırılmış) -->
+  {% if grouped_products %}
+    <div class="mt-10">
+      <h2 class="text-2xl font-bold text-green-700 mb-4">Menüdeki Ürünler</h2>
+
+      {% for category, products in grouped_products.items() %}
+        <div class="mb-6">
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ category }}</h3>
+          <ul class="list-disc list-inside text-gray-700 space-y-1">
+            {% for product in products %}
+              <li>
+                <span class="font-medium">{{ product.name }}</span><br>
+                {% if product.description %}
+                  <span class="text-sm text-gray-500">{{ product.description }}</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Yorum Yapma Formu -->
+  {% if session.get('user_id') %}
+    <div class="mt-10">
+      <h2 class="text-2xl font-bold text-green-700 mb-4">Yorum Yap ve Puan Ver</h2>
+      <form method="POST" action="{{ url_for('add_comment', restaurant_id=restaurant.id) }}" class="space-y-4">
+        <textarea name="text" class="w-full p-3 border rounded" placeholder="Yorumunuzu yazın..." required></textarea>
+
+        <select name="rating" class="w-full p-3 border rounded" required>
+          <option value="">Puan Ver</option>
+          <option value="5">5 - Mükemmel</option>
+          <option value="4">4 - Çok İyi</option>
+          <option value="3">3 - İyi</option>
+          <option value="2">2 - Kötü</option>
+          <option value="1">1 - Berbat</option>
+        </select>
+
+        <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">Gönder</button>
+      </form>
+    </div>
+  {% else %}
+    <p class="mt-4 text-sm text-gray-600">Yorum yapabilmek için <a href="/login" class="text-green-700 hover:underline">giriş yap</a>.</p>
+  {% endif %}
+
+  <!-- Yorumlar Listesi -->
+  <div class="mt-10">
+    <h2 class="text-2xl font-bold text-green-700 mb-4">Yorumlar</h2>
+
+    {% if restaurant.comments %}
+      {% for comment in restaurant.comments %}
+        <div class="bg-white p-4 rounded shadow mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-semibold">{{ comment.user.username }}</span>
+            <span class="text-yellow-500">
+              {% for i in range(comment.rating) %}★{% endfor %}
+              {% for i in range(5 - comment.rating) %}☆{% endfor %}
+            </span>
+          </div>
+
+          <p class="text-gray-700 mb-2">{{ comment.text }}</p>
+          <p class="text-xs text-gray-400">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+
+          {% if session.get('user_id') == comment.user_id %}
+            <div class="mt-2 flex items-center space-x-4">
+              <a href="{{ url_for('edit_comment', comment_id=comment.id) }}" class="text-blue-600 hover:underline text-sm">Düzenle</a>
+
+              <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="POST" onsubmit="return confirm('Yorumu silmek istediğinize emin misiniz?');">
+                <button type="submit" class="text-red-600 hover:underline text-sm">Sil</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-sm text-gray-600">Henüz yorum yapılmadı.</p>
+    {% endif %}
+  </div>
+
+{% endblock %}

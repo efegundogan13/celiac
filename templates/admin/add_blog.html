@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Blog Yazısı Ekle{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold text-green-700 mb-6">Yeni Blog Yazısı Ekle</h1>
+
+  <form method="POST" class="space-y-4 max-w-2xl">
+    <input type="text" name="title" class="w-full p-2 border rounded" placeholder="Başlık" required>
+
+    <textarea name="content" class="w-full p-2 border rounded" rows="8" placeholder="İçerik" required></textarea>
+
+    <input type="text" name="image_url" class="w-full p-2 border rounded" placeholder="Görsel URL (opsiyonel)">
+
+    <select name="category_id" class="w-full p-2 border rounded" required>
+      <option value="">Kategori Seç</option>
+      {% for category in categories %}
+        <option value="{{ category.id }}">{{ category.name }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">
+      Kaydet
+    </button>
+  </form>
+{% endblock %}

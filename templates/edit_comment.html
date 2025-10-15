@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Yorum Düzenle{% endblock %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold mb-6">Yorumunu Düzenle</h1>
+
+  <form method="POST" class="bg-white p-6 rounded shadow-md space-y-4">
+    <div>
+      <label class="block font-semibold mb-1">Puan</label>
+      <input type="number" name="rating" min="1" max="5" value="{{ comment.rating }}"
+             class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-400" required>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-1">Yorum</label>
+      <textarea name="text" rows="4"
+                class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-400" required>{{ comment.text }}</textarea>
+    </div>
+
+    <div class="flex space-x-4">
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Güncelle</button>
+      <a href="{{ url_for('restaurant_detail', id=comment.restaurant_id) }}" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">İptal</a>
+    </div>
+  </form>
+{% endblock %}

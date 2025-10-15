@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Glutensiz Restoranlar{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold text-green-700 mb-6">Glutensiz Restoranlar</h1>
+
+  <!-- Filtre Formu -->
+  <form method="GET" class="bg-white p-4 rounded shadow mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label for="city" class="block text-sm font-semibold text-gray-700 mb-1">Şehir</label>
+      <select name="city" id="city" class="w-full p-2 border rounded">
+        <option value="">Tüm Şehirler</option>
+        {% for c in cities %}
+          <option value="{{ c[0] }}" {% if request.args.get('city') == c[0] %}selected{% endif %}>{{ c[0] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="category" class="block text-sm font-semibold text-gray-700 mb-1">Kategori</label>
+      <select name="category" id="category" class="w-full p-2 border rounded">
+        <option value="">Tüm Kategoriler</option>
+        {% for cat in categories %}
+          <option value="{{ cat[0] }}" {% if request.args.get('category') == cat[0] %}selected{% endif %}>{{ cat[0] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex items-end">
+      <button type="submit" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800 w-full">
+        Filtrele
+      </button>
+    </div>
+  </form>
+
+  <!-- Harita -->
+  <div id="map" class="w-full h-[400px] rounded mb-8 shadow"></div>
+
+  <script>
+    {% set city_locations = {
+      "İstanbul": [41.0082, 28.9784],
+      "Ankara": [39.9208, 32.8541],
+      "İzmir": [38.4192, 27.1287],
+      "Bursa": [40.1828, 29.0665],
+      "Antalya": [36.8841, 30.7056],
+      "Adana": [37.0, 35.3213],
+      "Gaziantep": [37.0662, 37.3833],
+      "Kayseri": [38.7200, 35.4800],
+      "Eskişehir": [39.7767, 30.5206],
+      "Konya": [37.8746, 32.4932]
+    } %}
+
+    let defaultLat = 39.0;
+    let defaultLng = 35.0;
+    let defaultZoom = 6;
+
+    {% if selected_city and selected_city in city_locations %}
+      defaultLat = {{ city_locations[selected_city][0] }};
+      defaultLng = {{ city_locations[selected_city][1] }};
+      defaultZoom = 12;
+    {% endif %}
+
+    const map = L.map('map').setView([defaultLat, defaultLng], defaultZoom);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap katkıda bulunanlar'
+    }).addTo(map);
+
+    {% for r in restaurants %}
+      {% if r.latitude and r.longitude %}
+        L.marker([{{ r.latitude }}, {{ r.longitude }}]).addTo(map)
+          .bindPopup("<strong>{{ r.name }}</strong><br>{{ r.city }} - {{ r.category }}");
+      {% endif %}
+    {% endfor %}
+  </script>
+
+  <!-- Restoran Kartları -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for r in restaurants %}
+      <div class="bg-white shadow p-4 rounded hover:shadow-md transition">
+        <img src="{{ r.image_url }}" class="h-48 w-full object-contain rounded mb-3">
+        <h2 class="text-xl font-bold text-green-700">{{ r.name }}</h2>
+        <p class="text-gray-600">{{ r.city }} - {{ r.category }}</p>
+        <p class="text-sm text-gray-500 mt-2">{{ r.description[:100] }}...</p>
+
+        <a href="/restaurants/{{ r.id }}" class="text-green-600 text-sm mt-2 inline-block hover:underline">
+          Detaya Git
+        </a>
+
+        {% if session.get('user_id') %}
+          <div class="mt-2">
+            <a href="/favorite/restaurant/{{ r.id }}" class="text-yellow-500 text-sm hover:underline">
+              ⭐ Favorilere Ekle/Kaldır
+            </a>
+          </div>
+        {% endif %}
+
+        {% if session.get('is_admin') %}
+          <div class="flex space-x-2 mt-4">
+            <a href="/admin/edit-restaurant/{{ r.id }}" class="text-blue-600 text-sm hover:underline">Düzenle</a>
+            <form action="/admin/delete-restaurant/{{ r.id }}" method="POST" onsubmit="return confirm('Silmek istediğine emin misin?')">
+              <button type="submit" class="text-red-600 text-sm hover:underline">Sil</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

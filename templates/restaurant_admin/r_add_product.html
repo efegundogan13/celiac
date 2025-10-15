@@ -1,0 +1,30 @@
+<!-- templates/restaurant_admin/r_add_product.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ürün Ekle - Restoran Paneli</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Ürün Ekle</h1>
+
+    <form action="{{ url_for('restaurant_bp.add_product') }}" method="POST" enctype="multipart/form-data">
+        <label for="name">Ürün Adı:</label><br>
+        <input type="text" id="name" name="name" required><br><br>
+
+        <label for="category">Kategori:</label><br>
+        <input type="text" id="category" name="category" required><br><br>
+
+        <label for="image">Görsel:</label><br>
+        <input type="file" id="image" name="image" accept="image/*"><br><br>
+
+        <button type="submit">Ekle</button>
+    </form>
+
+    <br>
+    <a href="{{ url_for('restaurant_bp.restaurant_dashboard') }}">← Geri Dön</a>
+
+</body>
+</html>

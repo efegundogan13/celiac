@@ -1,0 +1,36 @@
+<!-- templates/restaurant_admin/r_edit_product.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ürün Düzenle - Restoran Paneli</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Ürün Düzenle</h1>
+
+    <form action="{{ url_for('restaurant_bp.edit_product', product_id=product.id) }}" method="POST" enctype="multipart/form-data">
+        <label for="name">Ürün Adı:</label><br>
+        <input type="text" id="name" name="name" value="{{ product.name }}" required><br><br>
+
+        <label for="category">Kategori:</label><br>
+        <input type="text" id="category" name="category" value="{{ product.category }}" required><br><br>
+
+        <label for="image">Yeni Görsel (İsteğe Bağlı):</label><br>
+        <input type="file" id="image" name="image" accept="image/*"><br><br>
+
+        {% if product.image %}
+            <p>Mevcut Görsel:</p>
+            <img src="{{ url_for('static', filename='uploads/' + product.image) }}" alt="Görsel" width="100">
+        {% endif %}
+
+        <br><br>
+        <button type="submit">Kaydet</button>
+    </form>
+
+    <br>
+    <a href="{{ url_for('restaurant_bp.restaurant_dashboard') }}">← Geri Dön</a>
+
+</body>
+</html>
