@@ -7,3 +7,4 @@ werkzeug
 Flask-Mail
 pytz
 Flask-Cors
+requests
