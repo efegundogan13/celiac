@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ restaurant.name }} — Etkinlikler{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-6">
+  <h1 class="text-2xl font-bold mb-4">Yaklaşan Etkinlikler — {{ restaurant.name }}</h1>
+
+  {% if events %}
+    <ul class="space-y-4">
+      {% for e in events %}
+        <li class="p-4 bg-white rounded shadow">
+          <a href="{{ url_for('event_detail', slug=e.slug) }}" class="font-semibold text-green-700 text-lg">{{ e.title }}</a>
+          <div class="text-sm text-gray-600">
+            {% if e.starts_at %}{{ e.starts_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+            {% if e.ends_at %} — {{ e.ends_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+          </div>
+          <div class="text-gray-700 mt-2">{{ e.description[:220] if e.description else '' }}</div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Bu restorana ait etkinlik bulunmamaktadır.</p>
+  {% endif %}
+</div>
+{% endblock %}

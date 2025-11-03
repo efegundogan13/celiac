@@ -62,6 +62,40 @@
               <a href="{{ url_for('admin_dashboard') }}" class="hover:underline hover:text-[#004F3E] transition">🛠️ Yönetim Paneli</a>
             {% endif %}
 
+            <!-- Etkinlikler Dropdown -->
+            <div class="relative inline-block text-left">
+              <button id="eventsButton" class="px-3 py-2 rounded hover:bg-gray-100 transition text-sm font-medium" aria-haspopup="true" aria-expanded="false">
+                Etkinlikler
+                <svg class="inline-block ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+
+              <div id="eventsDropdown" class="hidden origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                <div class="py-2">
+                  {% if upcoming_events %}
+                    {% for ev in upcoming_events %}
+                      <a href="{{ url_for('event_detail', slug=ev.slug) }}" class="block px-4 py-3 hover:bg-gray-50">
+                        <div class="text-sm font-semibold text-green-700 truncate">{{ ev.title }}</div>
+                        <div class="text-xs text-gray-500">
+                          {% if ev.starts_at %}
+                            {{ ev.starts_at.strftime('%d.%m.%Y %H:%M') }}
+                          {% endif %}
+                          {% if ev.restaurant %}
+                            • {{ ev.restaurant.name }}
+                          {% endif %}
+                        </div>
+                      </a>
+                      {% if not loop.last %}<div class="border-t my-0.5"></div>{% endif %}
+                    {% endfor %}
+                    <div class="px-4 py-2">
+                      <a href="{{ url_for('restaurant_events_public', restaurant_id=upcoming_events[0].restaurant_id) }}" class="text-sm text-blue-600 hover:underline">Tüm etkinlikleri gör</a>
+                    </div>
+                  {% else %}
+                    <div class="px-4 py-3 text-sm text-gray-500">Yaklaşan etkinlik yok.</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
             <!-- 👤 Kullanıcı Sağ Bölüm -->
             <div class="flex items-center gap-4">
               {% if session.get('user_id') %}
@@ -106,5 +140,22 @@
     </footer>
 
   </div>
+
+  <script>
+    // Basit dropdown toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('eventsButton');
+      var dd = document.getElementById('eventsDropdown');
+      if (btn && dd) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          dd.classList.toggle('hidden');
+        });
+        document.addEventListener('click', function() {
+          if (!dd.classList.contains('hidden')) dd.classList.add('hidden');
+        });
+      }
+    });
+  </script>
 </body>
 </html>

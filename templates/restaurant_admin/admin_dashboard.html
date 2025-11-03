@@ -5,6 +5,34 @@
 <div class="max-w-5xl mx-auto">
   <h1 class="text-2xl font-bold text-green-700 mb-6">Restoran Admin Paneli</h1>
 
+  <!-- Flash mesajları göster -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="space-y-2 mb-4">
+        {% for category, msg in messages %}
+          <div class="p-3 rounded {{ 'bg-green-100 text-green-800' if category in ['success','info'] else 'bg-red-100 text-red-800' }}">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Action butonları (Ürün / Etkinlik) -->
+  {% if session.get('is_admin') or session.get('role') == 'restaurant_admin' %}
+    <div class="mb-6 flex items-center justify-end space-x-2">
+      <a href="{{ url_for('add_product') }}" class="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        + Yeni Ürün Ekle
+      </a>
+      <a href="{{ url_for('restaurant_admin_event_new') }}" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        + Yeni Etkinlik Ekle
+      </a>
+      <a href="{{ url_for('restaurant_admin_events') }}" class="inline-block bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-50">
+        Etkinliklerim
+      </a>
+    </div>
+  {% endif %}
+
   <!-- İstatistikler -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
     <div class="p-4 border rounded shadow text-center">
@@ -22,8 +50,8 @@
     <div class="p-4 border rounded shadow text-center">
       <h2 class="text-lg font-semibold text-gray-700">Ortalama Puan</h2>
       <p class="text-xl font-bold text-green-700">
-        {% if comments|length > 0 %}
-          {{ (comments | map(attribute='rating') | sum / comments|length) | round(2) }}
+        {% if avg_rating is not none %}
+          {{ avg_rating }} / 5
         {% else %}
           -
         {% endif %}
@@ -39,7 +67,8 @@
         <li class="p-3 border rounded hover:bg-gray-50 flex justify-between items-center">
           <div>
             <strong>{{ r.name }}</strong> – {{ r.city }}
-            <span class="ml-2 text-green-600 text-sm">(Favori: {{ favorite_counts[r.id] }})</span>
+            <div class="text-sm text-gray-500 mt-1">{{ r.address or '' }}</div>
+            <div class="text-xs text-gray-600 mt-1">Favori: {{ favorite_counts[r.id] if favorite_counts and r.id in favorite_counts else 0 }}</div>
           </div>
           <div>
             <a href="{{ url_for('edit_restaurant', id=r.id) }}" class="text-blue-600 hover:underline ml-2">Düzenle</a>
@@ -50,58 +79,142 @@
     </ul>
   </div>
 
-  <!-- Ürünler -->
+  <!-- Etkinliklerim (özet, dashboard içinde) -->
   <div class="mt-8">
-    <h2 class="text-xl font-bold mb-3">Ürünlerim</h2>
-    <ul class="space-y-2">
-      {% for p in products %}
-        <li class="p-3 border rounded hover:bg-gray-50 flex justify-between items-center">
-          <div><strong>{{ p.name }}</strong> – {{ p.category }}</div>
-          <a href="{{ url_for('edit_product', id=p.id) }}" class="text-blue-600 hover:underline">Düzenle</a>
-        </li>
-      {% endfor %}
-    </ul>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-xl font-bold">Etkinliklerim</h2>
+      <a href="{{ url_for('restaurant_admin_events') }}" class="text-sm text-blue-600 hover:underline">Tümünü Gör</a>
+    </div>
+
+    {% if events %}
+      <ul class="space-y-3">
+        {% for e in events[:5] %}
+          <li class="p-3 border rounded hover:bg-gray-50 flex justify-between items-start">
+            <div class="flex items-start space-x-4">
+              {% if e.image_url %}
+                <img src="{{ e.image_url }}" alt="{{ e.title }}" class="w-20 h-14 object-cover rounded">
+              {% else %}
+                <div class="w-20 h-14 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">No Image</div>
+              {% endif %}
+              <div>
+                <a href="{{ url_for('event_detail', slug=e.slug) }}" class="font-semibold text-green-700">{{ e.title }}</a>
+                <div class="text-sm text-gray-600 mt-1">
+                  {% if e.starts_at %}{{ e.starts_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+                  {% if e.ends_at %} — {{ e.ends_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+                </div>
+                <div class="text-xs text-gray-500 mt-1">Kontenjan: {{ e.capacity or 'Sınırsız' }} • Durum: {{ e.status }}</div>
+              </div>
+            </div>
+
+            <div class="flex flex-col items-end space-y-2">
+              <div>
+                <a href="{{ url_for('restaurant_admin_event_edit', event_id=e.id) }}" class="text-blue-600 hover:underline text-sm">Düzenle</a>
+                <form action="{{ url_for('restaurant_admin_event_delete', event_id=e.id) }}" method="POST" onsubmit="return confirm('Etkinliği silmek istediğinize emin misiniz?');" class="inline">
+                  <button type="submit" class="text-red-600 hover:underline text-sm ml-2">Sil</button>
+                </form>
+              </div>
+              <div class="text-xs text-gray-500">{{ e.participants|length if e.participants is defined else 0 }} katılımcı</div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if events|length == 0 %}
+        <p class="text-gray-600">Henüz etkinlik yok.</p>
+      {% endif %}
+    {% else %}
+      <p class="text-gray-600">Henüz etkinlik yok.</p>
+    {% endif %}
   </div>
 
-  <!-- Yorumlar -->
-  <div class="mt-10">
-    <h2 class="text-xl font-bold mb-3">Yorumlar</h2>
+  <!-- Ürünler -->
+  <div class="mt-8">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-xl font-bold">Ürünlerim</h2>
+    </div>
 
-    {% if comments %}
-      <div class="overflow-x-auto">
-        <table class="min-w-full border text-sm">
-          <thead class="bg-green-100">
-            <tr>
-              <th class="px-3 py-2 border">Kullanıcı</th>
-              <th class="px-3 py-2 border text-left">Yorum</th>
-              <th class="px-3 py-2 border">Puan</th>
-              <th class="px-3 py-2 border">Tarih</th>
-              <th class="px-3 py-2 border">İşlem</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for c in comments %}
-              <tr class="hover:bg-gray-50">
-                <td class="px-3 py-2 border text-center">{{ c.user.username }}</td>
-                <td class="px-3 py-2 border">{{ c.text }}</td>
-                <td class="px-3 py-2 border text-center">{{ c.rating }}/5</td>
-                <td class="px-3 py-2 border text-center">{{ c.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                <td class="px-3 py-2 border text-center">
-                  {% if c.restaurant.owner_id == session.get('user_id') %}
-                    <form action="{{ url_for('restaurant_admin_delete_comment', comment_id=c.id) }}"
-                          method="POST"
-                          onsubmit="return confirm('Bu yorumu silmek istediğinize emin misiniz?');">
-                      <button type="submit" class="text-red-600 hover:underline text-sm">Sil</button>
-                    </form>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    {% if products %}
+      <ul class="space-y-2">
+        {% for p in products %}
+          <li class="p-3 border rounded hover:bg-gray-50 flex justify-between items-center">
+            <div>
+              <strong>{{ p.name }}</strong> – <span class="text-gray-600">{{ p.category }}</span>
+              <div class="text-sm text-gray-500 mt-1">{{ p.description[:120] if p.description else '' }}</div>
+            </div>
+            <div class="flex items-center space-x-3">
+              <a href="{{ url_for('edit_product', id=p.id) }}" class="text-blue-600 hover:underline">Düzenle</a>
+              {% set rest = p.restaurant %}
+              {% if session.get('is_admin') or (rest and rest.owner_id == session.get('user_id')) %}
+                <form method="POST" action="{{ url_for('delete_product', id=p.id) }}" onsubmit="return confirm('Ürünü silmek istediğinize emin misiniz?');" class="m-0 p-0">
+                  <button type="submit" class="text-red-600 hover:underline text-sm">Sil</button>
+                </form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-600">Henüz ürün eklenmemiş. Yeni ürün eklemek için <a href="{{ url_for('add_product') }}" class="text-green-600 hover:underline">buraya tıklayın</a>.</p>
+    {% endif %}
+  </div>
+
+  <!-- Bekleyen Yorumlar (pending) -->
+  <div class="mt-10">
+    <h2 class="text-xl font-bold mb-3">Bekleyen Yorumlar</h2>
+
+    {% set pending = comments | selectattr('status','equalto','pending') | list %}
+    {% if pending %}
+      <div class="space-y-4">
+        {% for c in pending %}
+          <div class="p-4 border rounded">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-sm text-gray-600">Kullanıcı: <strong>{{ c.user.username if c.user else 'Anonim' }}</strong></div>
+                <div class="text-sm text-gray-500">Ürün/Restoran: {{ c.restaurant.name if c.restaurant else '' }}</div>
+                <div class="mt-2 text-gray-800">{{ c.text }}</div>
+                <div class="mt-2 text-sm text-gray-600">Puan: {{ c.rating }}/5 — Gönderildi: {{ c.created_at.strftime('%d.%m.%Y %H:%M') if c.created_at else '' }}</div>
+              </div>
+              <div class="flex flex-col space-y-2 ml-4">
+                <form method="POST" action="{{ url_for('restaurant_admin_approve_comment', comment_id=c.id) }}">
+                  <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Onayla</button>
+                </form>
+                <form method="POST" action="{{ url_for('restaurant_admin_reject_comment', comment_id=c.id) }}">
+                  <button type="submit" class="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200">Reddet</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
       </div>
     {% else %}
-      <p class="text-gray-600">Henüz yorum bulunmuyor.</p>
+      <p class="text-gray-600">Bekleyen yorum bulunmuyor.</p>
+    {% endif %}
+  </div>
+
+  <!-- Tüm Yorumlar (onaylı ve reddedilmiş dahil) -->
+  <div class="mt-10 mb-12">
+    <h2 class="text-xl font-bold mb-3">Tüm Yorumlar (Onaylı / Reddedilmiş)</h2>
+
+    {% set others = comments | rejectattr('status','equalto','pending') | list %}
+    {% if others %}
+      <ul class="space-y-2">
+        {% for c in others %}
+          <li class="p-3 border rounded flex justify-between items-center">
+            <div>
+              <strong>{{ c.user.username if c.user else 'Anonim' }}</strong> — {{ c.text }}
+              <div class="text-sm text-gray-500">Puan: {{ c.rating }}/5 • Durum: <span class="font-semibold">{{ c.status }}</span></div>
+            </div>
+            <div>
+              {% if c.status == 'approved' %}
+                <span class="text-green-600">Yayınlandı</span>
+              {% else %}
+                <span class="text-red-600">Reddedildi</span>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-gray-600">Henüz onaylanmış veya reddedilmiş yorum yok.</p>
     {% endif %}
   </div>
 </div>

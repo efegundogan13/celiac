@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Etkinliklerim — Restoran Paneli{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold">Etkinliklerim</h1>
+    <div>
+      <a href="{{ url_for('restaurant_admin_event_new') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Yeni Etkinlik</a>
+    </div>
+  </div>
+
+  {% if events %}
+    <ul class="space-y-4">
+      {% for e in events %}
+        <li class="p-4 bg-white rounded shadow flex justify-between items-start">
+          <div>
+            <a href="{{ url_for('event_detail', slug=e.slug) }}" class="font-semibold text-lg text-green-700">{{ e.title }}</a>
+            <div class="text-sm text-gray-600 mt-1">
+              {% if e.starts_at %}{{ e.starts_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+              {% if e.ends_at %} — {{ e.ends_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+            </div>
+            <div class="text-sm text-gray-500 mt-2">{{ e.description[:160] if e.description else '' }}</div>
+          </div>
+
+          <div class="flex flex-col items-end space-y-2">
+            <div class="text-sm text-gray-600">Kontenjan: {{ e.capacity or '—' }}</div>
+            <div class="space-x-2">
+              <a href="{{ url_for('restaurant_admin_event_edit', event_id=e.id) }}" class="text-blue-600 hover:underline">Düzenle</a>
+              <form action="{{ url_for('restaurant_admin_event_delete', event_id=e.id) }}" method="POST" onsubmit="return confirm('Etkinliği silmek istediğinize emin misiniz?');" class="inline">
+                <button type="submit" class="text-red-600 hover:underline">Sil</button>
+              </form>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Henüz etkinlik yok.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Yeni Etkinlik — Restoran Paneli{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-6">
+  <h1 class="text-2xl font-bold mb-4">Yeni Etkinlik Oluştur</h1>
+
+  <form method="POST" action="{{ url_for('restaurant_admin_event_new') }}" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium">Restoran</label>
+      <select name="restaurant_id" class="w-full p-2 border rounded" required>
+        {% for r in restaurants %}
+          <option value="{{ r.id }}">{{ r.name }} — {{ r.city }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Başlık *</label>
+      <input name="title" class="w-full p-2 border rounded" required>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Açıklama</label>
+      <textarea name="description" class="w-full p-2 border rounded" rows="6"></textarea>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Görsel URL</label>
+      <input name="image_url" class="w-full p-2 border rounded" placeholder="https://...">
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium">Başlangıç (YYYY-MM-DD HH:MM) *</label>
+        <input name="starts_at" class="w-full p-2 border rounded" placeholder="2025-12-31 19:00" required>
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Bitiş (opsiyonel)</label>
+        <input name="ends_at" class="w-full p-2 border rounded" placeholder="2025-12-31 22:00">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium">Kontenjan (opsiyonel)</label>
+        <input name="capacity" type="number" min="1" class="w-full p-2 border rounded" placeholder="50">
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Ücret (TL - opsiyonel)</label>
+        <input name="price" class="w-full p-2 border rounded" placeholder="49.90">
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Ödeme / Bilet Linki (opsiyonel)</label>
+      <input name="payment_url" class="w-full p-2 border rounded" placeholder="https://example.com/bilet/..." >
+      <p class="text-xs text-gray-500 mt-1">Varsa kullanıcılar ödeme için bu dış linke yönlendirilecek. Uygulama içinde ödeme yapılmaz.</p>
+    </div>
+
+    <div class="flex items-center space-x-4">
+      <button class="bg-green-600 text-white px-4 py-2 rounded">Oluştur</button>
+      <a href="{{ url_for('restaurant_admin_events') }}" class="text-gray-600">İptal</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

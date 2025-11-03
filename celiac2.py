@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message  # ✅ Tek import
@@ -10,6 +11,42 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# --- PLACE THIS NEAR THE TOP, AFTER app = Flask(...) and db = SQLAlchemy(app) ---
+from urllib.parse import quote_plus
+import pytz
+
+# Jinja filtre: url encode
+def jinja_url_encode(value):
+    if value is None:
+        return ''
+    return quote_plus(str(value))
+
+app.jinja_env.filters['url_encode'] = jinja_url_encode
+
+# Jinja filtre: Türkiye yerel saatli, okunabilir format
+def jinja_turkish_datetime(value):
+    if value is None:
+        return ''
+    try:
+        # Eğer value timezone-aware değilse varsayımı UTC -> Istanbul
+        # ve ardından Istanbul'a çevir
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            # treat as naive UTC
+            dt_utc = pytz.UTC.localize(value)
+        else:
+            dt_utc = value.astimezone(pytz.UTC)
+        tz = pytz.timezone('Europe/Istanbul')
+        dt_local = dt_utc.astimezone(tz)
+        return dt_local.strftime('%d.%m.%Y %H:%M')
+    except Exception:
+        try:
+            # fallback naive formatting
+            return value.strftime('%d.%m.%Y %H:%M')
+        except Exception:
+            return str(value)
+
+app.jinja_env.filters['turkish_datetime'] = jinja_turkish_datetime
+# -----------------------------------------------------------------------------
 app.config.update({
     'SQLALCHEMY_DATABASE_URI': os.environ.get("DATABASE_URL"),
     'SQLALCHEMY_TRACK_MODIFICATIONS': False,
@@ -35,8 +72,6 @@ import requests
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 SENDGRID_ENABLED = os.environ.get("SENDGRID_ENABLED", "false").lower() == "true"
 SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL")
-
-# ... (mevcut kodlar, modeller VE SQLAlchemy aynen kalacak!)
 
 # SendGrid ile mail gönderme fonksiyonu
 def sendgrid_send_confirmation_email(user_email, confirm_url):
@@ -70,10 +105,6 @@ def sendgrid_send_confirmation_email(user_email, confirm_url):
     except Exception as e:
         print(f"❌ SendGrid exception: {e}")
         return False
-
-# ... (MODELLER VE DİĞER TÜM KODLAR AYNI KALACAK!)
-
-
 
 def send_confirmation_email(user_email):
     try:
@@ -177,7 +208,16 @@ class Comment(db.Model):
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-    user = db.relationship('User', backref='comments')
+    # Moderation fields (buffer / pending workflow)
+    status = db.Column(db.String(20), default='pending')  # pending / approved / rejected
+    pending_at = db.Column(db.DateTime, nullable=True)
+    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+
+    # Açıkça hangi foreign key'in hangi ilişkiye ait olduğunu belirt
+    user = db.relationship('User', foreign_keys=[user_id], backref='comments')
+    approved_user = db.relationship('User', foreign_keys=[approved_by], backref='approved_comments')
+
     restaurant = db.relationship('Restaurant', backref='comments')
 
 class ProductComment(db.Model):
@@ -263,6 +303,345 @@ class RestaurantApplicationProduct(db.Model):
     description = db.Column(db.Text)
 
     application = db.relationship("RestaurantApplication", backref="products")
+
+# Add these imports near top of your celiac2.py
+from sqlalchemy import Numeric
+from slugify import slugify  # optional: pip install python-slugify
+from decimal import Decimal
+from datetime import datetime
+
+# -----------------------------
+# Event & EventRSVP MODELLER
+# -----------------------------
+class Event(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # etkinlik oluşturan (restoran admin)
+    title = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(250), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    image_url = db.Column(db.String(400))
+    starts_at = db.Column(db.DateTime, nullable=False)
+    ends_at = db.Column(db.DateTime, nullable=True)
+    capacity = db.Column(db.Integer, nullable=True)     # kontenjan
+    price = db.Column(Numeric(8, 2), nullable=True)     # ücret (opsiyonel)
+    is_public = db.Column(db.Boolean, default=True)
+    status = db.Column(db.String(20), default='published')  # draft / published / canceled
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.current_timestamp())
+    payment_url = db.Column(db.String(500), nullable=True)  # opsiyonel: restoranın dış ödeme/bilet linki
+
+    restaurant = db.relationship('Restaurant', backref='events')
+    creator = db.relationship('User', foreign_keys=[creator_id], backref='created_events')
+
+    def ensure_slug(self):
+        # create readable unique slug; fallback to id if collision (ensure committed to generate id)
+        if not self.slug and self.title:
+            base = slugify(self.title)[:200] if 'slugify' in globals() else self.title.lower().replace(' ', '-')[:200]
+            slug = base
+            i = 1
+            while Event.query.filter_by(slug=slug).first():
+                i += 1
+                slug = f"{base}-{i}"
+            self.slug = slug
+
+class EventRSVP(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='going')  # going / maybe / canceled
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    event = db.relationship('Event', backref='rsvps')
+    user = db.relationship('User', backref='event_rsvps')
+
+# -----------------------------
+# EVENT ROUTES (CRUD + Public + RSVP)
+# -----------------------------
+
+@app.route('/restaurant-admin/events')
+def restaurant_admin_events():
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Bu alana erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
+    restaurant_ids = [r.id for r in restaurants]
+
+    events = Event.query.filter(Event.restaurant_id.in_(restaurant_ids)).order_by(Event.starts_at.asc()).all() if restaurant_ids else []
+
+    # convert times for display
+    for e in events:
+        if e.starts_at:
+            e.starts_at = to_turkey_time(e.starts_at)
+        if e.ends_at:
+            e.ends_at = to_turkey_time(e.ends_at)
+
+    return render_template('restaurant_admin/events_list.html', events=events, restaurants=restaurants)
+
+@app.route('/restaurant-admin/events/new', methods=['GET', 'POST'])
+def restaurant_admin_event_new():
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
+
+    if request.method == 'POST':
+        try:
+            restaurant_id = int(request.form['restaurant_id'])
+        except Exception:
+            flash("Restoran seçimi geçersiz.", "danger")
+            return redirect(url_for('restaurant_admin_event_new'))
+
+        if restaurant_id not in [r.id for r in restaurants]:
+            flash("Seçilen restorana yetkiniz yok.", "danger")
+            return redirect(url_for('restaurant_admin_event_new'))
+
+        title = request.form.get('title','').strip()
+        description = request.form.get('description')
+        image_url = request.form.get('image_url')
+        starts_at_raw = request.form.get('starts_at')  # expects "YYYY-MM-DD HH:MM"
+        ends_at_raw = request.form.get('ends_at')
+        capacity = request.form.get('capacity', type=int)
+        price_raw = request.form.get('price')
+
+        if not title or not starts_at_raw:
+            flash("Başlık ve başlangıç zamanı zorunludur.", "danger")
+            return redirect(url_for('restaurant_admin_event_new'))
+
+        try:
+            starts_dt = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
+        except Exception:
+            flash("Başlangıç tarihi formatı geçersiz. YYYY-MM-DD HH:MM", "danger")
+            return redirect(url_for('restaurant_admin_event_new'))
+
+        ends_dt = None
+        if ends_at_raw:
+            try:
+                ends_dt = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M')
+            except Exception:
+                flash("Bitiş tarihi formatı geçersiz. YYYY-MM-DD HH:MM", "danger")
+                return redirect(url_for('restaurant_admin_event_new'))
+
+        try:
+            price = Decimal(price_raw) if price_raw else None
+        except Exception:
+            flash("Ücret formatı geçersiz.", "danger")
+            return redirect(url_for('restaurant_admin_event_new'))
+
+        ev = Event(
+            restaurant_id=restaurant_id,
+            creator_id=user_id,
+            title=title,
+            description=description,
+            image_url=image_url,
+            starts_at=starts_dt,
+            ends_at=ends_dt,
+            capacity=capacity or None,
+            price=price,
+            status='published',
+            is_public=True
+        )
+        # create provisional slug; ensure uniqueness after commit if needed
+        ev.ensure_slug()
+        db.session.add(ev)
+        db.session.commit()
+
+        # if slug was not unique (unlikely due to ensure_slug), ensure with id fallback
+        if not ev.slug:
+            ev.slug = f"event-{ev.id}"
+            db.session.commit()
+
+        flash("Etkinlik oluşturuldu.", "success")
+        return redirect(url_for('restaurant_admin_events'))
+
+    return render_template('restaurant_admin/event_new.html', restaurants=restaurants)
+
+@app.route('/restaurant-admin/events/<int:event_id>/edit', methods=['GET', 'POST'])
+def restaurant_admin_event_edit(event_id):
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    ev = Event.query.get_or_404(event_id)
+    user_id = session['user_id']
+    restaurant = Restaurant.query.get(ev.restaurant_id)
+    if not restaurant or restaurant.owner_id != user_id:
+        flash("Bu etkinliği düzenleme yetkiniz yok.", "danger")
+        return redirect(url_for('restaurant_admin_events'))
+
+    if request.method == 'POST':
+        ev.title = request.form.get('title','').strip()
+        ev.description = request.form.get('description')
+        ev.image_url = request.form.get('image_url')
+        starts_at_raw = request.form.get('starts_at')
+        ends_at_raw = request.form.get('ends_at')
+        ev.capacity = request.form.get('capacity', type=int) or None
+        price_raw = request.form.get('price')
+        try:
+            ev.price = Decimal(price_raw) if price_raw else None
+        except Exception:
+            flash("Ücret formatı geçersiz.", "danger")
+            return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
+
+        try:
+            ev.starts_at = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
+            ev.ends_at = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M') if ends_at_raw else None
+        except Exception:
+            flash("Tarih formatı geçersiz.", "danger")
+            return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
+
+        ev.ensure_slug()
+        db.session.commit()
+        flash("Etkinlik güncellendi.", "success")
+        return redirect(url_for('restaurant_admin_events'))
+
+    display_starts = ev.starts_at.strftime('%Y-%m-%d %H:%M') if ev.starts_at else ''
+    display_ends = ev.ends_at.strftime('%Y-%m-%d %H:%M') if ev.ends_at else ''
+    return render_template('restaurant_admin/event_edit.html', event=ev, display_starts=display_starts, display_ends=display_ends)
+
+@app.route('/restaurant-admin/events/<int:event_id>/delete', methods=['POST'])
+def restaurant_admin_event_delete(event_id):
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    ev = Event.query.get_or_404(event_id)
+    user_id = session['user_id']
+    restaurant = Restaurant.query.get(ev.restaurant_id)
+    if not restaurant or restaurant.owner_id != user_id:
+        flash("Bu etkinliği silme yetkiniz yok.", "danger")
+        return redirect(url_for('restaurant_admin_events'))
+
+    # Delete RSVPs first (optional cascade)
+    EventRSVP.query.filter_by(event_id=ev.id).delete()
+    db.session.delete(ev)
+    db.session.commit()
+    flash("Etkinlik silindi.", "success")
+    return redirect(url_for('restaurant_admin_events'))
+
+# Public routes
+@app.route('/restaurants/<int:restaurant_id>/events')
+def restaurant_events_public(restaurant_id):
+    restaurant = Restaurant.query.get_or_404(restaurant_id)
+    events = Event.query.filter_by(restaurant_id=restaurant_id, status='published', is_public=True).order_by(Event.starts_at.asc()).all()
+    for e in events:
+        if e.starts_at:
+            e.starts_at = to_turkey_time(e.starts_at)
+        if e.ends_at:
+            e.ends_at = to_turkey_time(e.ends_at)
+    return render_template('events/public_list.html', restaurant=restaurant, events=events)
+
+from sqlalchemy import func
+
+@app.route('/events/<slug>')
+def event_detail(slug):
+    # Yalnızca yayınlanmış ve herkese açık etkinlikleri göster
+    ev = Event.query.filter_by(slug=slug, status='published', is_public=True).first_or_404()
+
+    # Katılımcı sayısı (sadece bilgi amaçlı)
+    confirmed_count = 0
+    try:
+        confirmed_count = db.session.query(
+            func.coalesce(func.sum(EventParticipant.guests + 1), 0)
+        ).filter(
+            EventParticipant.event_id == ev.id,
+            EventParticipant.status == 'confirmed'
+        ).scalar() or 0
+    except Exception:
+        # fallback: eğer EventParticipant yoksa veya hata varsa 0 al
+        try:
+            confirmed_count = EventRSVP.query.filter_by(event_id=ev.id, status='going').count()
+        except Exception:
+            confirmed_count = 0
+
+    spots_left = None
+    if ev.capacity:
+        spots_left = max(0, ev.capacity - confirmed_count)
+
+    # Fiyatı gösterim için formatla
+    price_display = None
+    if ev.price is not None:
+        try:
+            price_display = f"{float(ev.price):.2f}"
+        except Exception:
+            price_display = str(ev.price)
+
+    # ÖNEMLİ: burada KESİNLİKLE hiç kayıt/RSVP yaratma. Sadece gösterim.
+    return render_template('events/detail.html',
+                           event=ev,
+                           confirmed_count=confirmed_count,
+                           spots_left=spots_left,
+                           price_display=price_display)
+
+
+@app.route('/events/<int:event_id>/rsvp', methods=['POST'])
+def event_rsvp(event_id):
+    if not session.get('user_id'):
+        flash("Katılmak için giriş yapmalısınız.", "danger")
+        return redirect(url_for('login'))
+
+    ev = Event.query.get_or_404(event_id)
+    user_id = session['user_id']
+
+    going_count = EventRSVP.query.filter_by(event_id=event_id, status='going').count()
+    if ev.capacity and going_count >= ev.capacity:
+        flash("Üzgünüz, etkinlik kontenjanı dolu.", "danger")
+        return redirect(url_for('event_detail', slug=ev.slug))
+
+    existing = EventRSVP.query.filter_by(event_id=event_id, user_id=user_id).first()
+    if existing:
+        existing.status = 'going'
+        db.session.commit()
+        flash("Katılımınız güncellendi.", "success")
+    else:
+        r = EventRSVP(event_id=event_id, user_id=user_id, status='going')
+        db.session.add(r)
+        db.session.commit()
+        flash("Etkinliğe kayıt yapıldı.", "success")
+
+    return redirect(url_for('event_detail', slug=ev.slug))
+
+# Add this context processor somewhere after your `app` is created (e.g. after app = Flask(...))
+from datetime import datetime
+from sqlalchemy import asc
+
+@app.context_processor
+def inject_upcoming_events():
+    """
+    Adds `upcoming_events` to all templates.
+    - Shows up to 5 next published, public events whose starts_at >= now (UTC).
+    - Wrapped in try/except so templates still render if DB/table missing.
+    """
+    try:
+        now = datetime.utcnow()
+        upcoming = Event.query.filter(
+            Event.status == 'published',
+            Event.is_public == True,
+            Event.starts_at >= now
+        ).order_by(asc(Event.starts_at)).limit(5).all()
+
+        # Convert times to Turkey time for display if you have to_turkey_time util
+        for e in upcoming:
+            if getattr(e, 'starts_at', None):
+                try:
+                    e.starts_at = to_turkey_time(e.starts_at)
+                except Exception:
+                    # fallback: leave as-is if conversion fails
+                    pass
+            if getattr(e, 'ends_at', None):
+                try:
+                    e.ends_at = to_turkey_time(e.ends_at)
+                except Exception:
+                    pass
+
+    except Exception:
+        upcoming = []
+
+    return dict(upcoming_events=upcoming)
 
 # ------------------ ROUTELAR ------------------
 
@@ -487,25 +866,33 @@ def restaurants():
                            categories=categories,
                            selected_city=selected_city)
 
+# --- Replace or update the existing restaurant_detail view with this version ---
+from datetime import datetime
+
 @app.route('/restaurants/<int:id>')
 def restaurant_detail(id):
     restaurant = Restaurant.query.get_or_404(id)
+
+    # Only fetch APPROVED comments for public view
+    comments = Comment.query.filter_by(restaurant_id=id, status='approved').order_by(Comment.created_at.desc()).all()
+
     products = Product.query.filter_by(restaurant_id=id).all()
 
-    for comment in restaurant.comments:
-        comment.created_at = to_turkey_time(comment.created_at)
+    # convert times to Turkey timezone for display
+    for comment in comments:
+        if comment.created_at:
+            comment.created_at = to_turkey_time(comment.created_at)
 
     grouped_products = {}
     for product in products:
         category = product.category or 'Diğer'
-        if category not in grouped_products:
-            grouped_products[category] = []
-        grouped_products[category].append(product)
+        grouped_products.setdefault(category, []).append(product)
 
     return render_template(
         'restaurant_detail.html',
         restaurant=restaurant,
-        grouped_products=grouped_products
+        grouped_products=grouped_products,
+        comments=comments
     )
 
 import os
@@ -591,6 +978,9 @@ def edit_restaurant(id):
 
     return render_template('admin/edit_restaurant.html', restaurant=restaurant)
 
+# Replace existing restaurant_admin_dashboard view with this version
+from datetime import datetime
+
 @app.route('/restaurant-admin/dashboard')
 def restaurant_admin_dashboard():
     if not session.get('user_id') or session.get('role') != 'restaurant_admin':
@@ -600,16 +990,33 @@ def restaurant_admin_dashboard():
     user_id = session['user_id']
     restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
     restaurant_ids = [r.id for r in restaurants]
-    products = Product.query.filter(Product.restaurant_id.in_(restaurant_ids)).all()
-    comments = Comment.query.filter(Comment.restaurant_id.in_(restaurant_ids)).order_by(Comment.created_at.desc()).all()
+
+    products = Product.query.filter(Product.restaurant_id.in_(restaurant_ids)).all() if restaurant_ids else []
+
+    # show all comments related to their restaurants (including pending)
+    comments = Comment.query.filter(Comment.restaurant_id.in_(restaurant_ids)).order_by(Comment.created_at.desc()).all() if restaurant_ids else []
 
     favorite_counts = {r.id: FavoriteRestaurant.query.filter_by(restaurant_id=r.id).count() for r in restaurants}
+
+    # Calculate average rating across APPROVED comments for this restaurant admin's restaurants
+    approved_comments = [c for c in comments if getattr(c, 'status', None) == 'approved' and getattr(c, 'rating', None) is not None]
+    if approved_comments:
+        total = sum(int(c.rating) for c in approved_comments)
+        avg_rating = round(total / len(approved_comments), 2)
+    else:
+        avg_rating = None  # template will show '-'
+
+    # convert created_at to Turkey time for display (optional)
+    for c in comments:
+        if c.created_at:
+            c.created_at = to_turkey_time(c.created_at)
 
     return render_template('restaurant_admin/admin_dashboard.html',
                            restaurants=restaurants,
                            products=products,
                            comments=comments,
-                           favorite_counts=favorite_counts)
+                           favorite_counts=favorite_counts,
+                           avg_rating=avg_rating)
 
 @app.route('/admin/delete-restaurant/<int:id>', methods=['POST'])
 def delete_restaurant(id):
@@ -706,24 +1113,54 @@ def admin_favorite_products():
 
 @app.route('/admin/add-product', methods=['GET', 'POST'])
 def add_product():
-    if not session.get('is_admin'):
+    # Artık hem admin hem de restaurant_admin bu route'a erişebilir.
+    if not session.get('user_id') or not (session.get('is_admin') or session.get('role') == 'restaurant_admin'):
         flash("Yetkiniz yok.", "danger")
         return redirect(url_for('login'))
 
-    restaurants = Restaurant.query.all()
+    user_id = session.get('user_id')
+    is_admin = bool(session.get('is_admin'))
+    is_restaurant_admin = session.get('role') == 'restaurant_admin'
+
+    # Admin tüm restoranları görür; restaurant_admin yalnızca kendine ait olanları görür.
+    if is_admin:
+        restaurants = Restaurant.query.all()
+    else:
+        restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
 
     if request.method == 'POST':
+        # restaurant_id zorunlu
+        restaurant_id = request.form.get('restaurant_id', type=int)
+        if not restaurant_id:
+            flash("Restoran seçimi zorunlu.", "danger")
+            return redirect(url_for('add_product'))
+
+        restaurant_obj = Restaurant.query.get(restaurant_id)
+        if not restaurant_obj:
+            flash("Seçilen restoran bulunamadı.", "danger")
+            return redirect(url_for('add_product'))
+
+        # Eğer kullanıcı restoran admini ise, seçilen restoranın kendisine ait olduğundan emin ol
+        if is_restaurant_admin and restaurant_obj.owner_id != user_id:
+            flash("Bu restorana ürün ekleme yetkiniz yok.", "danger")
+            return redirect(url_for('add_product'))
+
         new_product = Product(
             name=request.form['name'],
             category=request.form['category'],
-            description=request.form['description'],
-            image_url=request.form['image_url'],
-            restaurant_id=request.form['restaurant_id']
+            description=request.form.get('description'),
+            image_url=request.form.get('image_url'),
+            restaurant_id=restaurant_id
         )
         db.session.add(new_product)
         db.session.commit()
         flash("Ürün eklendi.", "success")
-        return redirect(url_for('restaurants'))
+
+        # Doğru dashboarda yönlendir
+        if is_admin:
+            return redirect(url_for('restaurants'))
+        else:
+            return redirect(url_for('restaurant_admin_dashboard'))
 
     return render_template('admin/add_product.html', restaurants=restaurants)
 
@@ -968,7 +1405,7 @@ def profile():
 
     favorite_restaurants = FavoriteRestaurant.query.filter_by(user_id=user_id).all()
     favorite_products = FavoriteProduct.query.filter_by(user_id=user_id).all()
-    user_comments = Comment.query.filter_by(user_id=user_id).all()
+    user_comments = Comment.query.filter_by(user_id=user_id, status='approved').all()
 
     for comment in user_comments:
         comment.created_at = to_turkey_time(comment.created_at)
@@ -988,7 +1425,7 @@ def profile():
 @app.route('/restaurants/<int:restaurant_id>/comment', methods=['POST'])
 def add_comment(restaurant_id):
     if not session.get('user_id'):
-        flash("Yorum yapabilmek için giriş yapmalısın.", "danger")
+        flash("Yorum yapabilmek için giriş yapmalısınız.", "danger")
         return redirect(url_for('login'))
 
     text = request.form['text']
@@ -998,16 +1435,43 @@ def add_comment(restaurant_id):
         flash("Yorum ve puan boş bırakılamaz.", "danger")
         return redirect(url_for('restaurant_detail', id=restaurant_id))
 
+    now = datetime.utcnow()
+
+    # New behavior: comments are buffered/pending until restaurant admin approves.
     new_comment = Comment(
         user_id=session['user_id'],
         restaurant_id=restaurant_id,
         rating=int(rating),
-        text=text
+        text=text,
+        status='pending',
+        pending_at=now
     )
     db.session.add(new_comment)
     db.session.commit()
 
-    flash("Yorum başarıyla eklendi!", "success")
+    # Flash a message to the user indicating the comment is in process
+    flash("Yorumunuz işleme alındı. Restoran yöneticisi onayladıktan sonra yayınlanacaktır.", "info")
+
+    # Optionally notify restaurant owner by email (if contact exists)
+    try:
+        restaurant = Restaurant.query.get(restaurant_id)
+        if restaurant and restaurant.owner_id:
+            owner = User.query.get(restaurant.owner_id)
+            if owner and owner.email:
+                confirm_url = url_for('restaurant_admin_dashboard', _external=True)
+                try:
+                    if SENDGRID_ENABLED:
+                        sendgrid_send_confirmation_email(owner.email, confirm_url)
+                    else:
+                        msg = Message(subject="Yeni Yorum Onayı Bekliyor",
+                                      recipients=[owner.email],
+                                      body=f"Restoranınıza yeni bir yorum geldi. Panelden onaylayabilirsiniz: {confirm_url}")
+                        mail.send(msg)
+                except Exception as mail_e:
+                    print("Owner notify mail error:", mail_e)
+    except Exception as e:
+        print("notify owner error:", e)
+
     return redirect(url_for('restaurant_detail', id=restaurant_id))
 
 @app.route('/search')
@@ -1074,8 +1538,6 @@ def edit_comment(comment_id):
         return redirect(url_for('restaurant_detail', id=comment.restaurant_id))
 
     return render_template('edit_comment.html', comment=comment)
-
-
 
 @app.route('/change-password', methods=['GET', 'POST'])
 def change_password():
@@ -1539,8 +2001,50 @@ def restaurant_admin_delete_comment(comment_id):
     flash("Yorum başarıyla silindi.", "success")
     return redirect(url_for('restaurant_admin_dashboard'))
 
+@app.route('/restaurant-admin/comment/<int:comment_id>/approve', methods=['POST'])
+def restaurant_admin_approve_comment(comment_id):
+    """Restoran admini pending yorumları onaylayabilir."""
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Bu alana erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
 
+    comment = Comment.query.get_or_404(comment_id)
+    restaurant = Restaurant.query.get(comment.restaurant_id)
+    user_id = session['user_id']
 
+    if not restaurant or restaurant.owner_id != user_id:
+        flash("Bu yorumu onaylama yetkiniz yok.", "danger")
+        return redirect(url_for('restaurant_admin_dashboard'))
+
+    comment.status = 'approved'
+    comment.approved_by = user_id
+    comment.approved_at = datetime.utcnow()
+    db.session.commit()
+    flash("Yorum onaylandı ve yayınlandı.", "success")
+    return redirect(url_for('restaurant_admin_dashboard'))
+
+@app.route('/restaurant-admin/comment/<int:comment_id>/reject', methods=['POST'])
+def restaurant_admin_reject_comment(comment_id):
+    """Restoran admini pending yorumları reddedebilir (silme yerine status değiştirme tercih edilebilir)."""
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Bu alana erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    comment = Comment.query.get_or_404(comment_id)
+    restaurant = Restaurant.query.get(comment.restaurant_id)
+    user_id = session['user_id']
+
+    if not restaurant or restaurant.owner_id != user_id:
+        flash("Bu yorumu reddetme yetkiniz yok.", "danger")
+        return redirect(url_for('restaurant_admin_dashboard'))
+
+    # Burada tamamen silme yerine 'rejected' yapıyoruz; geçmiş kalır.
+    comment.status = 'rejected'
+    comment.approved_by = user_id
+    comment.approved_at = datetime.utcnow()
+    db.session.commit()
+    flash("Yorum reddedildi.", "info")
+    return redirect(url_for('restaurant_admin_dashboard'))
 
 from flask_cors import CORS
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -1898,7 +2402,8 @@ def api_blog_like_status(blog_id, user_id):
 
 @app.route('/api/comments/restaurant/<int:restaurant_id>', methods=['GET'])
 def get_comments_for_restaurant(restaurant_id):
-    comments = Comment.query.filter_by(restaurant_id=restaurant_id).all()
+    # Return only approved comments in the public API
+    comments = Comment.query.filter_by(restaurant_id=restaurant_id, status='approved').all()
     return jsonify([
         {
             "id": c.id,
@@ -1923,10 +2428,12 @@ def api_comment_restaurant():
     )
     if not all([user_id, restaurant_id, rating, text]):
         return jsonify({'error': 'Tüm alanlar zorunludur'}), 400
-    new_comment = Comment(user_id=user_id, restaurant_id=restaurant_id, rating=int(rating), text=text)
+    now = datetime.utcnow()
+    new_comment = Comment(user_id=user_id, restaurant_id=restaurant_id, rating=int(rating), text=text,
+                          status='pending', pending_at=now)
     db.session.add(new_comment)
     db.session.commit()
-    return jsonify({'message': 'Yorum eklendi'}), 201
+    return jsonify({'message': 'Yorum işleme alındı (restoran onayı bekliyor).'}), 201
 
 
 @app.route('/api/blogs/<int:blog_id>/comments')
@@ -2071,4 +2578,3 @@ if __name__ == '__main__':
         else:
             print("❌ Kullanıcı bulunamadı")
     app.run(debug=True)
-
