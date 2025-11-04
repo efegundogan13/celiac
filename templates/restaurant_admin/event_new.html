@@ -25,11 +25,6 @@
       <textarea name="description" class="w-full p-2 border rounded" rows="6"></textarea>
     </div>
 
-    <div>
-      <label class="block text-sm font-medium">Görsel URL</label>
-      <input name="image_url" class="w-full p-2 border rounded" placeholder="https://...">
-    </div>
-
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium">Başlangıç (YYYY-MM-DD HH:MM) *</label>
@@ -41,21 +36,20 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium">Kontenjan (opsiyonel)</label>
-        <input name="capacity" type="number" min="1" class="w-full p-2 border rounded" placeholder="50">
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Ücret (TL - opsiyonel)</label>
-        <input name="price" class="w-full p-2 border rounded" placeholder="49.90">
-      </div>
+    <div>
+      <label class="block text-sm font-medium">Kontenjan (opsiyonel)</label>
+      <input name="capacity" type="number" min="1" class="w-full p-2 border rounded" placeholder="50">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Ücret (TL - opsiyonel)</label>
+      <input name="price" class="w-full p-2 border rounded" placeholder="49.90">
     </div>
 
     <div>
       <label class="block text-sm font-medium">Ödeme / Bilet Linki (opsiyonel)</label>
-      <input name="payment_url" class="w-full p-2 border rounded" placeholder="https://example.com/bilet/..." >
-      <p class="text-xs text-gray-500 mt-1">Varsa kullanıcılar ödeme için bu dış linke yönlendirilecek. Uygulama içinde ödeme yapılmaz.</p>
+      <input name="payment_url" class="w-full p-2 border rounded" placeholder="https://example.com/bilet/...">
+      <p class="text-xs text-gray-500 mt-1">Varsa kullanıcılar ödeme için bu dış linke yönlendirilecek.</p>
     </div>
 
     <div class="flex items-center space-x-4">

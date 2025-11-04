@@ -77,11 +77,29 @@
   <!-- Restoran Kartları -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for r in restaurants %}
-      <div class="bg-white shadow p-4 rounded hover:shadow-md transition">
-        <img src="{{ r.image_url }}" class="h-48 w-full object-contain rounded mb-3">
+      <div class="bg-white shadow p-4 rounded hover:shadow-md transition relative overflow-visible">
+        {% if r.image_url %}
+          <img src="{{ r.image_url }}" class="h-48 w-full object-contain rounded mb-3" alt="{{ r.name }}">
+        {% endif %}
+
+        {# Badge: sağ üst köşede, logo ya da görseli kapatmayacak şekilde absolute placed #}
+        {% if r.celiac_friendly %}
+          <div class="absolute right-4 top-4 z-10" aria-hidden="true">
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-weight:700;
+                         color:#065f46;background:linear-gradient(180deg,#ecfdf5,#e0f7ea);border:1px solid rgba(6,95,70,0.08);
+                         box-shadow:0 4px 12px rgba(6,95,70,0.06);font-size:0.78rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
+                <circle cx="12" cy="12" r="11" stroke="#0b5136" stroke-opacity="0.12" fill="#e9f7ef"/>
+                <path d="M7 12.5L10 15.5L17 8.5" stroke="#065f46" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span style="font-size:0.78rem;">Çölyak Dostu</span>
+            </span>
+          </div>
+        {% endif %}
+
         <h2 class="text-xl font-bold text-green-700">{{ r.name }}</h2>
         <p class="text-gray-600">{{ r.city }} - {{ r.category }}</p>
-        <p class="text-sm text-gray-500 mt-2">{{ r.description[:100] }}...</p>
+        <p class="text-sm text-gray-500 mt-2">{{ r.description[:100] }}{% if r.description and r.description|length > 100 %}...{% endif %}</p>
 
         <a href="/restaurants/{{ r.id }}" class="text-green-600 text-sm mt-2 inline-block hover:underline">
           Detaya Git

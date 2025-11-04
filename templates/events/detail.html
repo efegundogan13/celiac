@@ -1,93 +1,32 @@
 {% extends "base.html" %}
-{% block title %}{{ event.title }} — Etkinlik{% endblock %}
+{% block title %}{{ event.title }}{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto py-6">
-  <h1 class="text-2xl font-bold text-green-700 mb-2">{{ event.title }}</h1>
+  <h1 class="text-2xl font-bold mb-4">{{ event.title }}</h1>
 
-  {% if event.image_url %}
-    <img src="{{ event.image_url }}" alt="{{ event.title }}" class="w-full h-64 object-cover rounded mb-4">
-  {% endif %}
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <p class="text-gray-700 mb-3"><strong>Açıklama:</strong></p>
+    <div class="prose mb-4">{{ event.description or '-' }}</div>
 
-  <div class="bg-white p-4 rounded shadow mb-4">
-    <!-- Yer / Restoran / Adres -->
-    <div class="text-sm text-gray-600 mb-2">
-      <strong>Yer:</strong>
-      {% if event.restaurant and event.restaurant.name %}
-        {{ event.restaurant.name }}
-        {% if event.restaurant.address %} — {{ event.restaurant.address }}{% endif %}
-      {% else %}
-        {{ event.location or '—' }}
-      {% endif %}
-    </div>
+    <p class="mb-2"><strong>Tarih:</strong> {{ starts_display }}{% if ends_display %} — {{ ends_display }}{% endif %}</p>
 
-    <!-- İletişim (varsa) -->
-    {% if event.restaurant and (event.restaurant.phone or event.restaurant.email) %}
-      <div class="text-sm text-gray-600 mb-2">
-        <strong>İletişim:</strong>
-        {% if event.restaurant.phone %}Tel: {{ event.restaurant.phone }}{% endif %}
-        {% if event.restaurant.email %}{% if event.restaurant.phone %} • {% endif %}E‑posta: <a href="mailto:{{ event.restaurant.email }}" class="text-green-700 hover:underline">{{ event.restaurant.email }}</a>{% endif %}
-      </div>
+    {% if capacity_display is not none %}
+      <p class="mb-2"><strong>Kontenjan:</strong> {{ capacity_display }}</p>
     {% endif %}
 
-    <!-- Tarih (Türkçe format) -->
-    <div class="text-sm text-gray-600 mb-2">
-      <strong>Tarih:</strong>
-      {% if event.starts_at %}
-        {{ event.starts_at | turkish_datetime }}
-        {% if event.ends_at %} — {{ event.ends_at | turkish_datetime }}{% endif %}
-      {% else %}
-        —
-      {% endif %}
-    </div>
+    {% if price_display %}
+      <p class="mb-2"><strong>Ücret:</strong> {{ price_display }}</p>
+    {% endif %}
 
-    <!-- Kontenjan ve kalan (sadece bilgilendirme) -->
-    <div class="text-sm text-gray-600 mb-2">
-      <strong>Kontenjan:</strong> {{ event.capacity or 'Sınırsız' }}
-      {% if spots_left is not none %}
-        • <strong>Kalan (bilgilendirme amaçlı):</strong> {{ spots_left }}
-      {% endif %}
-      <div class="text-xs text-gray-500 mt-1">Katılımcı (bilgi): {{ confirmed_count }}</div>
-    </div>
-
-    <!-- Ücret -->
-    <div class="text-sm text-gray-600 mb-2">
-      <strong>Ücret:</strong>
-      {% if price_display %}{{ price_display }} TL{% else %}Ücretsiz / Bilgi amaçlı{% endif %}
-    </div>
-
-    <!-- Ödeme / Bilet Linki (gösterilecek) -->
     {% if event.payment_url %}
-      <div class="mt-3">
-        <a href="{{ event.payment_url }}" target="_blank" rel="noopener noreferrer" class="inline-block bg-yellow-600 text-white px-4 py-2 rounded">Ödeme / Bilet Al</a>
-        <p class="text-xs text-gray-500 mt-2">Bu link restoran sahibine aittir; ödeme uygulama dışında yapılır. Uygulama üzerinden kayıt alınmaz; kontenjan bilgisi yalnızca bilgilendirme amaçlıdır.</p>
-        <div class="mt-2 text-xs">
-          <strong>Link:</strong>
-          <a href="{{ event.payment_url }}" target="_blank" rel="noopener noreferrer" class="text-green-700 hover:underline break-all">{{ event.payment_url }}</a>
-        </div>
-      </div>
-    {% else %}
-      <div class="mt-3">
-        <p class="text-sm text-gray-600">Bu etkinlik için uygulama içi kayıt bulunmamaktadır.</p>
-        <p class="text-xs text-gray-500 mt-2">Eğer restoran bilet/ödeme dış linki eklerse burada görünür.</p>
+      <div class="mt-4">
+        <a href="{{ event.payment_url }}" target="_blank" rel="noopener noreferrer" class="bg-blue-600 text-white px-4 py-2 rounded inline-block">
+          Ödeme / Bilet Al
+        </a>
       </div>
     {% endif %}
 
-    <!-- Paylaş / Harita bağlantısı (tweet kaldırıldı) -->
-    <div class="mt-4 flex items-center space-x-3">
-      {% if event.payment_url %}
-        <a href="{{ event.payment_url }}" target="_blank" rel="noopener noreferrer" class="text-sm text-gray-700 hover:underline">Dış bilet sayfasını aç</a>
-      {% endif %}
-      {% if event.restaurant and event.restaurant.address %}
-        {% set map_query = (event.restaurant.address + ', ' + (event.restaurant.city or '')) %}
-        <a href="https://www.google.com/maps/search/?api=1&query={{ map_query | url_encode }}" target="_blank" rel="noopener noreferrer" class="text-sm text-gray-700 hover:underline">Haritada göster</a>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Açıklama -->
-  <div class="prose max-w-none">
-    {{ event.description | safe }}
   </div>
 </div>
 {% endblock %}

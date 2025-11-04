@@ -161,6 +161,7 @@ class Restaurant(db.Model):
     phone = db.Column(db.String(30))            # İletişim telefonu (YENİ)
     contact_email = db.Column(db.String(100))   # İletişim e-posta (YENİ)
     owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    celiac_friendly = db.Column(db.Boolean, default=False)
     @property
     def image_full_url(self):
         if self.is_file_upload and self.image_url:
@@ -292,6 +293,8 @@ class RestaurantApplication(db.Model):
     longitude = db.Column(db.Float)            # ← EKLEDİK (isteğe bağlı)
     status = db.Column(db.String(20), default="pending")
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    cross_contamination = db.Column(db.Boolean, default=False)  # Çapraz bulaşa dikkat ediyor musunuz?
+    celiac_friendly = db.Column(db.Boolean, default=False)
 
     user = db.relationship("User", backref="applications")
 
@@ -380,6 +383,7 @@ def restaurant_admin_events():
 
     return render_template('restaurant_admin/events_list.html', events=events, restaurants=restaurants)
 
+# Replace the POST handling in restaurant_admin_event_new with this (entire function)
 @app.route('/restaurant-admin/events/new', methods=['GET', 'POST'])
 def restaurant_admin_event_new():
     if not session.get('user_id') or session.get('role') != 'restaurant_admin':
@@ -388,78 +392,93 @@ def restaurant_admin_event_new():
 
     user_id = session['user_id']
     restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
+    if not restaurants:
+        flash("Herhangi bir restorana sahip değilsiniz.", "danger")
+        return redirect(url_for('restaurant_admin_dashboard'))
 
     if request.method == 'POST':
         try:
-            restaurant_id = int(request.form['restaurant_id'])
-        except Exception:
-            flash("Restoran seçimi geçersiz.", "danger")
-            return redirect(url_for('restaurant_admin_event_new'))
-
-        if restaurant_id not in [r.id for r in restaurants]:
-            flash("Seçilen restorana yetkiniz yok.", "danger")
-            return redirect(url_for('restaurant_admin_event_new'))
-
-        title = request.form.get('title','').strip()
-        description = request.form.get('description')
-        image_url = request.form.get('image_url')
-        starts_at_raw = request.form.get('starts_at')  # expects "YYYY-MM-DD HH:MM"
-        ends_at_raw = request.form.get('ends_at')
-        capacity = request.form.get('capacity', type=int)
-        price_raw = request.form.get('price')
-
-        if not title or not starts_at_raw:
-            flash("Başlık ve başlangıç zamanı zorunludur.", "danger")
-            return redirect(url_for('restaurant_admin_event_new'))
-
-        try:
-            starts_dt = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
-        except Exception:
-            flash("Başlangıç tarihi formatı geçersiz. YYYY-MM-DD HH:MM", "danger")
-            return redirect(url_for('restaurant_admin_event_new'))
-
-        ends_dt = None
-        if ends_at_raw:
+            # restaurant seçimi
             try:
-                ends_dt = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M')
+                restaurant_id = int(request.form.get('restaurant_id', '0'))
             except Exception:
-                flash("Bitiş tarihi formatı geçersiz. YYYY-MM-DD HH:MM", "danger")
+                flash("Restoran seçimi geçersiz.", "danger")
                 return redirect(url_for('restaurant_admin_event_new'))
 
-        try:
-            price = Decimal(price_raw) if price_raw else None
-        except Exception:
-            flash("Ücret formatı geçersiz.", "danger")
-            return redirect(url_for('restaurant_admin_event_new'))
+            if restaurant_id not in [r.id for r in restaurants]:
+                flash("Seçilen restorana yetkiniz yok.", "danger")
+                return redirect(url_for('restaurant_admin_event_new'))
 
-        ev = Event(
-            restaurant_id=restaurant_id,
-            creator_id=user_id,
-            title=title,
-            description=description,
-            image_url=image_url,
-            starts_at=starts_dt,
-            ends_at=ends_dt,
-            capacity=capacity or None,
-            price=price,
-            status='published',
-            is_public=True
-        )
-        # create provisional slug; ensure uniqueness after commit if needed
-        ev.ensure_slug()
-        db.session.add(ev)
-        db.session.commit()
+            # zorunlu alanlar
+            title = (request.form.get('title') or '').strip()
+            starts_at_raw = (request.form.get('starts_at') or '').strip()
+            if not title or not starts_at_raw:
+                flash("Başlık ve başlangıç zamanı zorunludur.", "danger")
+                return redirect(url_for('restaurant_admin_event_new'))
 
-        # if slug was not unique (unlikely due to ensure_slug), ensure with id fallback
-        if not ev.slug:
-            ev.slug = f"event-{ev.id}"
+            # diğer alanlar
+            description = request.form.get('description') or None
+            ends_at_raw = (request.form.get('ends_at') or '').strip()
+            capacity = request.form.get('capacity', type=int) or None
+            price_raw = (request.form.get('price') or '').strip()
+            payment_url = request.form.get('payment_url') or None
+
+            # tarih parsing - mevcut format YYYY-MM-DD HH:MM
+            try:
+                starts_dt = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
+            except Exception:
+                flash("Başlangıç tarihi formatı geçersiz. YYYY-MM-DD HH:MM", "danger")
+                return redirect(url_for('restaurant_admin_event_new'))
+
+            ends_dt = None
+            if ends_at_raw:
+                try:
+                    ends_dt = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M')
+                except Exception:
+                    flash("Bitiş tarihi formatı geçersiz. YYYY-MM-DD HH:MM", "danger")
+                    return redirect(url_for('restaurant_admin_event_new'))
+
+            # fiyat parse
+            try:
+                price = Decimal(price_raw) if price_raw else None
+            except Exception:
+                flash("Ücret formatı geçersiz. Örnek: 49.90", "danger")
+                return redirect(url_for('restaurant_admin_event_new'))
+
+            # Event oluştur
+            ev = Event(
+                restaurant_id=restaurant_id,
+                creator_id=user_id,
+                title=title,
+                description=description,
+                starts_at=starts_dt,
+                ends_at=ends_dt,
+                capacity=capacity,
+                price=price,
+                payment_url=payment_url,
+                is_public=True,
+                status='published'
+            )
+            ev.ensure_slug()
+            db.session.add(ev)
             db.session.commit()
 
-        flash("Etkinlik oluşturuldu.", "success")
-        return redirect(url_for('restaurant_admin_events'))
+            # garanti slug
+            if not ev.slug:
+                ev.slug = f"event-{ev.id}"
+                db.session.commit()
+
+            flash("Etkinlik oluşturuldu.", "success")
+            return redirect(url_for('restaurant_admin_events'))
+
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("DB hata - event oluşturma")
+            flash("Veritabanı hatası oluştu. Lütfen tekrar deneyin.", "danger")
+            return redirect(url_for('restaurant_admin_event_new'))
 
     return render_template('restaurant_admin/event_new.html', restaurants=restaurants)
-
+# Replace the POST handling in restaurant_admin_event_edit with this (entire function)
 @app.route('/restaurant-admin/events/<int:event_id>/edit', methods=['GET', 'POST'])
 def restaurant_admin_event_edit(event_id):
     if not session.get('user_id') or session.get('role') != 'restaurant_admin':
@@ -474,34 +493,56 @@ def restaurant_admin_event_edit(event_id):
         return redirect(url_for('restaurant_admin_events'))
 
     if request.method == 'POST':
-        ev.title = request.form.get('title','').strip()
-        ev.description = request.form.get('description')
-        ev.image_url = request.form.get('image_url')
-        starts_at_raw = request.form.get('starts_at')
-        ends_at_raw = request.form.get('ends_at')
-        ev.capacity = request.form.get('capacity', type=int) or None
-        price_raw = request.form.get('price')
         try:
-            ev.price = Decimal(price_raw) if price_raw else None
-        except Exception:
-            flash("Ücret formatı geçersiz.", "danger")
-            return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
+            ev.title = (request.form.get('title') or ev.title).strip()
+            ev.description = request.form.get('description') or ev.description
 
-        try:
-            ev.starts_at = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
-            ev.ends_at = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M') if ends_at_raw else None
-        except Exception:
-            flash("Tarih formatı geçersiz.", "danger")
-            return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
+            starts_at_raw = (request.form.get('starts_at') or '').strip()
+            ends_at_raw = (request.form.get('ends_at') or '').strip()
 
-        ev.ensure_slug()
-        db.session.commit()
-        flash("Etkinlik güncellendi.", "success")
-        return redirect(url_for('restaurant_admin_events'))
+            try:
+                if starts_at_raw:
+                    ev.starts_at = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
+                if ends_at_raw:
+                    ev.ends_at = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M')
+                else:
+                    ev.ends_at = None
+            except Exception:
+                flash("Tarih formatı geçersiz.", "danger")
+                return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
+
+            ev.capacity = request.form.get('capacity', type=int) or None
+
+            price_raw = (request.form.get('price') or '').strip()
+            try:
+                ev.price = Decimal(price_raw) if price_raw else None
+            except Exception:
+                flash("Ücret formatı geçersiz. Örnek: 49.90", "danger")
+                return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
+
+            # sadece payment_url kaydet (başka ekstra alan yok)
+            ev.payment_url = request.form.get('payment_url') or None
+
+            ev.ensure_slug()
+            db.session.commit()
+            flash("Etkinlik güncellendi.", "success")
+            return redirect(url_for('restaurant_admin_events'))
+
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception("DB hata - event güncelleme")
+            flash("Veritabanı hatası oluştu. Lütfen tekrar deneyin.", "danger")
+            return redirect(url_for('restaurant_admin_event_edit', event_id=event_id))
 
     display_starts = ev.starts_at.strftime('%Y-%m-%d %H:%M') if ev.starts_at else ''
     display_ends = ev.ends_at.strftime('%Y-%m-%d %H:%M') if ev.ends_at else ''
-    return render_template('restaurant_admin/event_edit.html', event=ev, display_starts=display_starts, display_ends=display_ends)
+    display_payment_url = ev.payment_url or ''
+    return render_template('restaurant_admin/event_edit.html',
+                           event=ev,
+                           display_starts=display_starts,
+                           display_ends=display_ends,
+                           display_payment_url=display_payment_url)
+
 
 @app.route('/restaurant-admin/events/<int:event_id>/delete', methods=['POST'])
 def restaurant_admin_event_delete(event_id):
@@ -539,44 +580,30 @@ from sqlalchemy import func
 
 @app.route('/events/<slug>')
 def event_detail(slug):
-    # Yalnızca yayınlanmış ve herkese açık etkinlikleri göster
     ev = Event.query.filter_by(slug=slug, status='published', is_public=True).first_or_404()
 
-    # Katılımcı sayısı (sadece bilgi amaçlı)
-    confirmed_count = 0
+    # convert times for display (Turkey time)
     try:
-        confirmed_count = db.session.query(
-            func.coalesce(func.sum(EventParticipant.guests + 1), 0)
-        ).filter(
-            EventParticipant.event_id == ev.id,
-            EventParticipant.status == 'confirmed'
-        ).scalar() or 0
+        ev.starts_at = to_turkey_time(ev.starts_at) if ev.starts_at else None
     except Exception:
-        # fallback: eğer EventParticipant yoksa veya hata varsa 0 al
-        try:
-            confirmed_count = EventRSVP.query.filter_by(event_id=ev.id, status='going').count()
-        except Exception:
-            confirmed_count = 0
+        pass
+    try:
+        ev.ends_at = to_turkey_time(ev.ends_at) if ev.ends_at else None
+    except Exception:
+        pass
 
-    spots_left = None
-    if ev.capacity:
-        spots_left = max(0, ev.capacity - confirmed_count)
+    # prepare display values
+    starts_display = ev.starts_at.strftime('%d.%m.%Y %H:%M') if ev.starts_at else ''
+    ends_display = ev.ends_at.strftime('%d.%m.%Y %H:%M') if ev.ends_at else ''
+    capacity_display = ev.capacity if ev.capacity is not None else None
+    price_display = f"{float(ev.price):.2f} TL" if ev.price is not None else None
 
-    # Fiyatı gösterim için formatla
-    price_display = None
-    if ev.price is not None:
-        try:
-            price_display = f"{float(ev.price):.2f}"
-        except Exception:
-            price_display = str(ev.price)
-
-    # ÖNEMLİ: burada KESİNLİKLE hiç kayıt/RSVP yaratma. Sadece gösterim.
     return render_template('events/detail.html',
                            event=ev,
-                           confirmed_count=confirmed_count,
-                           spots_left=spots_left,
+                           starts_display=starts_display,
+                           ends_display=ends_display,
+                           capacity_display=capacity_display,
                            price_display=price_display)
-
 
 @app.route('/events/<int:event_id>/rsvp', methods=['POST'])
 def event_rsvp(event_id):
@@ -1164,7 +1191,6 @@ def add_product():
 
     return render_template('admin/add_product.html', restaurants=restaurants)
 
-
 @app.route('/admin/edit-product/<int:id>', methods=['GET', 'POST'])
 def edit_product(id):
     if not session.get('user_id'):
@@ -1205,7 +1231,6 @@ def edit_product(id):
             return redirect(url_for('profile'))
 
     return render_template('admin/edit_product.html', product=product)
-
 
 @app.route('/admin/delete-product/<int:id>', methods=['POST'])
 def delete_product(id):
@@ -1835,7 +1860,6 @@ def apply_restaurant():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
-
     existing = RestaurantApplication.query.filter_by(user_id=user_id, status="pending").first()
     if existing:
         flash("Zaten bekleyen bir başvurunuz var.", "warning")
@@ -1852,6 +1876,19 @@ def apply_restaurant():
         latitude = request.form.get("latitude", type=float)
         longitude = request.form.get("longitude", type=float)
 
+        # Yeni alanlar: formdaki 'yes'/'no' veya checkbox dönüyorsa uyarlanabilir
+        cross = request.form.get('cross_contamination')
+        celiac = request.form.get('celiac_friendly')
+        # cross and celiac value parsing: 'yes' -> True, 'no' -> False; also checkbox case
+        def _parse_bool(v):
+            if v is None:
+                return False
+            v = str(v).lower()
+            return v in ('1','true','yes','on','y')
+
+        cross_val = _parse_bool(cross)
+        celiac_val = _parse_bool(celiac)
+
         app_obj = RestaurantApplication(
             user_id=user_id,
             name=name,
@@ -1862,19 +1899,20 @@ def apply_restaurant():
             phone=phone,
             contact_email=contact_email,
             latitude=latitude,
-            longitude=longitude
+            longitude=longitude,
+            cross_contamination=cross_val,
+            celiac_friendly=celiac_val
         )
         db.session.add(app_obj)
         db.session.commit()
 
-        # Ürünleri kaydet
+        # ürünleri kaydet (mevcut davranış)
         for key in request.form:
             if key.startswith("products") and "[name]" in key:
                 index = key.split("[")[1].split("]")[0]
                 pname = request.form.get(f"products[{index}][name]")
                 pcat = request.form.get(f"products[{index}][category]")
                 pdesc = request.form.get(f"products[{index}][description]")
-
                 if pname:
                     product = RestaurantApplicationProduct(
                         application_id=app_obj.id,

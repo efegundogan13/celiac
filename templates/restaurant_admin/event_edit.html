@@ -16,11 +16,6 @@
       <textarea name="description" class="w-full p-2 border rounded" rows="6">{{ event.description }}</textarea>
     </div>
 
-    <div>
-      <label class="block text-sm font-medium">Görsel URL</label>
-      <input name="image_url" class="w-full p-2 border rounded" value="{{ event.image_url }}">
-    </div>
-
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium">Başlangıç (YYYY-MM-DD HH:MM) *</label>
@@ -32,20 +27,19 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium">Kontenjan (opsiyonel)</label>
-        <input name="capacity" type="number" min="1" class="w-full p-2 border rounded" value="{{ event.capacity or '' }}">
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Ücret (TL - opsiyonel)</label>
-        <input name="price" class="w-full p-2 border rounded" value="{{ event.price or '' }}">
-      </div>
+    <div>
+      <label class="block text-sm font-medium">Kontenjan (opsiyonel)</label>
+      <input name="capacity" type="number" min="1" class="w-full p-2 border rounded" value="{{ event.capacity or '' }}">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium">Ücret (TL - opsiyonel)</label>
+      <input name="price" class="w-full p-2 border rounded" value="{{ event.price or '' }}">
     </div>
 
     <div>
       <label class="block text-sm font-medium">Ödeme / Bilet Linki (opsiyonel)</label>
-      <input name="payment_url" class="w-full p-2 border rounded" value="{{ event.payment_url or '' }}">
+      <input name="payment_url" class="w-full p-2 border rounded" value="{{ display_payment_url or '' }}">
       <p class="text-xs text-gray-500 mt-1">Varsa kullanıcıları dış ödeme/bilet sayfasına yönlendirmek için link ekleyin.</p>
     </div>
 
@@ -59,25 +53,5 @@
       <a href="{{ url_for('restaurant_admin_events') }}" class="text-gray-600">İptal</a>
     </div>
   </form>
-
-  <!-- Katılımcılar (kısa list) -->
-  <div class="mt-6">
-    <h2 class="text-lg font-semibold mb-2">Katılımcılar ({{ event.participants|length }})</h2>
-    {% if event.participants %}
-      <ul class="space-y-2">
-        {% for p in event.participants %}
-          <li class="p-2 border rounded flex justify-between items-center">
-            <div class="text-sm">
-              <strong>{{ p.name or (p.user.username if p.user else 'Anonim') }}</strong>
-              <div class="text-xs text-gray-600">{{ p.email or '-' }} • Misafir: {{ p.guests or 0 }}</div>
-            </div>
-            <div class="text-xs text-gray-500">{{ p.status }}</div>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-gray-600">Henüz katılımcı yok.</p>
-    {% endif %}
-  </div>
 </div>
 {% endblock %}

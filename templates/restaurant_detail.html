@@ -9,7 +9,21 @@
 
 {% block content %}
 
-  <h1 class="text-3xl font-bold text-green-700 mb-6">{{ restaurant.name }}</h1>
+  <h1 class="text-3xl font-bold text-green-700 mb-6 flex items-center justify-between">
+    <span>{{ restaurant.name }}</span>
+
+    {% if restaurant.celiac_friendly %}
+      <span role="status" aria-label="Çölyak Dostu"
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full font-semibold text-sm"
+            style="background:linear-gradient(180deg,#ecfdf5,#e0f7ea); color:#065f46; box-shadow:0 8px 22px rgba(6,95,70,0.06); border:1px solid rgba(6,95,70,0.08);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
+          <circle cx="12" cy="12" r="11" stroke="#0b5136" stroke-opacity="0.12" fill="#e9f7ef"/>
+          <path d="M7 12.5L10 15.5L17 8.5" stroke="#065f46" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Çölyak Dostu</span>
+      </span>
+    {% endif %}
+  </h1>
 
   <!-- Restoran Görseli -->
   {% if restaurant.image_url %}
