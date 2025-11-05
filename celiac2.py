@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message  # ✅ Tek import
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -337,16 +337,514 @@ class Event(db.Model):
     restaurant = db.relationship('Restaurant', backref='events')
     creator = db.relationship('User', foreign_keys=[creator_id], backref='created_events')
 
+    # --- Campaign modeli & ilgili route'lar ---
+
+    from sqlalchemy import and_
+
+    # --- Campaign modeli ve yardımcıları (MODELLER bölümünde, route'lar başlamadan önce ekleyin) ---
+    from sqlalchemy import or_
+
+class Campaign(db.Model):
+    __tablename__ = 'campaign'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(250), nullable=False)
+    slug = db.Column(db.String(300), nullable=True, unique=True)
+    description = db.Column(db.Text)
+    image_url = db.Column(db.String(400))
+    starts_at = db.Column(db.DateTime, nullable=True)
+    ends_at = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=True)  # null -> global kampanya
+    coupon_code = db.Column(db.String(80), nullable=True)
+    external_link = db.Column(db.String(500), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.current_timestamp())
+
+    restaurant = db.relationship('Restaurant', backref='campaigns')
+    creator = db.relationship('User', backref='created_campaigns')
+
     def ensure_slug(self):
-        # create readable unique slug; fallback to id if collision (ensure committed to generate id)
         if not self.slug and self.title:
-            base = slugify(self.title)[:200] if 'slugify' in globals() else self.title.lower().replace(' ', '-')[:200]
+            base = slugify(self.title)[:200] if 'slugify' in globals() else self.title.lower().replace(' ', '-')
             slug = base
             i = 1
-            while Event.query.filter_by(slug=slug).first():
+            while Campaign.query.filter_by(slug=slug).first():
                 i += 1
                 slug = f"{base}-{i}"
             self.slug = slug
+
+@app.context_processor
+def inject_upcoming_campaigns():
+    try:
+        now = datetime.utcnow()
+        # Aktif ve zaman aralığı uygun kampanyaları al (başlangıç yoksa veya <= now ve bitiş yoksa veya >= now)
+        upcoming = Campaign.query.filter(
+            Campaign.is_active == True,
+            or_(Campaign.starts_at == None, Campaign.starts_at <= now)
+        ).order_by(Campaign.starts_at.asc()).limit(5).all()
+
+        # convert times to Turkey time for display if to_turkey_time var
+        for c in upcoming:
+            if getattr(c, 'starts_at', None):
+                try:
+                    c.starts_at = to_turkey_time(c.starts_at)
+                except Exception:
+                    pass
+            if getattr(c, 'ends_at', None):
+                try:
+                    c.ends_at = to_turkey_time(c.ends_at)
+                except Exception:
+                    pass
+    except Exception:
+        upcoming = []
+    return dict(upcoming_campaigns=upcoming)
+
+# Güncellenmiş inject_upcoming_campaigns — hem ongoing hem upcoming kampanyaları döndürür
+from sqlalchemy import asc, or_
+
+@app.context_processor
+def inject_upcoming_campaigns():
+    """
+    Navbar'da gösterilecek kampanyaları getirir.
+    - Kampanya aktif olmalı (is_active == True)
+    - Ve bitiş zamanı yoksa veya bitiş >= now (yani bitmemiş)
+    Bu sayede hem halen devam eden hem de gelecekte başlayacak kampanyalar gösterilir.
+    """
+    try:
+        now = datetime.utcnow()
+        upcoming = Campaign.query.filter(
+            Campaign.is_active == True,
+            or_(
+                Campaign.ends_at == None,
+                Campaign.ends_at >= now
+            )
+        ).order_by(asc(Campaign.starts_at)).limit(5).all()
+
+        # Görünüme denk düşecek şekilde Türkiye zamanına çevir (opsiyonel)
+        for c in upcoming:
+            if getattr(c, 'starts_at', None):
+                try:
+                    c.starts_at = to_turkey_time(c.starts_at)
+                except Exception:
+                    pass
+            if getattr(c, 'ends_at', None):
+                try:
+                    c.ends_at = to_turkey_time(c.ends_at)
+                except Exception:
+                    pass
+    except Exception:
+        upcoming = []
+    return dict(upcoming_campaigns=upcoming)
+
+# -- Public: kampanya listesi --
+from datetime import datetime
+from sqlalchemy import or_, asc
+
+@app.route('/campaigns')
+def campaigns():
+    # gösterim kuralı: aktif ve bitmemiş (ends_at NULL veya >= now)
+    now = datetime.utcnow()
+    campaigns = Campaign.query.filter(
+        Campaign.is_active == True,
+        or_(Campaign.ends_at == None, Campaign.ends_at >= now)
+    ).order_by(asc(Campaign.starts_at)).all()
+
+    # opsiyonel: Türkiye saatine çevirme (görünümde tutarlı olsun)
+    try:
+        for c in campaigns:
+            if getattr(c, 'starts_at', None):
+                c.starts_at = to_turkey_time(c.starts_at)
+            if getattr(c, 'ends_at', None):
+                c.ends_at = to_turkey_time(c.ends_at)
+    except Exception:
+        current_app.logger.exception("campaigns: time convert failed")
+
+    return render_template('campaigns.html', campaigns=campaigns)
+
+# -- Public: kampanya detay --
+from flask import abort, current_app
+from datetime import datetime
+
+@app.route('/campaigns/<slug>')
+def campaign_detail(slug):
+    # 1) campaign'ı slug ile al
+    campaign = Campaign.query.filter_by(slug=slug).first()
+    if not campaign:
+        current_app.logger.info("campaign_detail: slug not found: %s", slug)
+        abort(404)
+
+    now = datetime.utcnow()
+
+    # 2) Görünürlük kuralları (tercihe göre uyarlayın):
+    # - Kampanya aktif olmalı
+    if not campaign.is_active:
+        current_app.logger.info("campaign_detail: inactive: %s", slug)
+        abort(404)
+
+    # - Kampanya bitmemiş olmalı (ends_at yok veya ends_at >= now)
+    if campaign.ends_at and campaign.ends_at < now:
+        current_app.logger.info("campaign_detail: already ended: %s (ends_at=%s)", slug, campaign.ends_at)
+        abort(404)
+
+    # NOT: Başlangıç zamanı (starts_at) gelecekte ise isteğe bağlı:
+    # Eğer "yakında başlayacak" kampanyaları da göstermek istiyorsanız bunu kontrol etmeyin.
+    # if campaign.starts_at and campaign.starts_at > now:
+    #     # isterseniz burada "yakında" etiketi vs. gösterebilirsiniz — 404 yapmayın.
+
+    # 3) Görünüm için zamanları locale/Türkiye saatine çevirmek isterseniz
+    try:
+        if campaign.starts_at:
+            campaign.starts_at = to_turkey_time(campaign.starts_at)
+        if campaign.ends_at:
+            campaign.ends_at = to_turkey_time(campaign.ends_at)
+    except Exception:
+        # hata olsa da render etmeye devam et
+        current_app.logger.exception("campaign_detail: time conversion failed for %s", slug)
+
+    return render_template('campaign_detail.html', campaign=campaign)
+# -- Admin / restaurant-admin: liste --
+# --- Campaign yönetimi: restaurant_admin yetkilendirmesi ile ---
+
+from sqlalchemy import or_  # dosyada yoksa ekleyin
+
+@app.route('/admin/campaigns')
+def admin_campaigns():
+    """
+    Site admin'i tüm kampanyaları görür.
+    Restoran-adminler buraya erişemez; onlar kendi panelinden yönetir.
+    """
+    if not session.get('user_id') or not session.get('is_admin'):
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    campaigns_list = Campaign.query.order_by(Campaign.created_at.desc()).all()
+    return render_template('admin/campaigns.html', campaigns=campaigns_list)
+
+@app.route('/restaurant-admin/campaigns')
+def restaurant_admin_campaigns():
+    """
+    Restoran admini kendi restoranlarına ait kampanyaları yönetir.
+    """
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Bu alana erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
+    rids = [r.id for r in restaurants]
+
+    campaigns_list = Campaign.query.filter(Campaign.restaurant_id.in_(rids)).order_by(
+        Campaign.created_at.desc()).all() if rids else []
+    return render_template('restaurant_admin/campaigns.html', campaigns=campaigns_list, restaurants=restaurants)
+
+@app.route('/admin/campaigns/new', methods=['GET', 'POST'])
+def admin_campaign_new():
+    """
+    - site-admin: oluştururken restaurant seçebilir veya global kampanya yapabilir.
+    - restaurant-admin: yalnızca kendi restoranları için kampanya oluşturabilir. restaurant_id boş bırakılamaz.
+    """
+    if not session.get('user_id') or not (session.get('is_admin') or session.get('role') == 'restaurant_admin'):
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+
+    # admin mi? restoran-admin mi?
+    is_admin = bool(session.get('is_admin'))
+    is_rest_admin = session.get('role') == 'restaurant_admin'
+
+    # Restoran listesini rol bazlı yükle
+    restaurants = Restaurant.query.all() if is_admin else Restaurant.query.filter_by(owner_id=user_id).all()
+
+    if request.method == 'POST':
+        title = request.form.get('title') or ''
+        description = request.form.get('description') or ''
+        image_url = request.form.get('image_url') or ''
+        starts_at_raw = request.form.get('starts_at') or ''
+        ends_at_raw = request.form.get('ends_at') or ''
+        coupon_code = request.form.get('coupon_code') or None
+        external_link = request.form.get('external_link') or None
+        is_active = request.form.get('is_active') in ('1', 'true', 'on', 'yes')
+
+        # restaurant_id: admin için optional, restaurant-admin için zorunlu (ve yalnızca kendi restoranlarından biri olmalı)
+        restaurant_id = request.form.get('restaurant_id', type=int) if request.form.get('restaurant_id') else None
+
+        if is_rest_admin:
+            # restaurant-admin için restaurant_id zorunlu olmalı
+            if not restaurant_id:
+                flash("Restoran-adminler için restoran seçmek zorunludur.", "danger")
+                return redirect(url_for('admin_campaign_new'))
+            # seçilen restoranın restaurant-admin'e ait olduğundan emin ol
+            if restaurant_id not in [r.id for r in restaurants]:
+                flash("Seçilen restoran size ait değil.", "danger")
+                return redirect(url_for('admin_campaign_new'))
+
+        # parse tarihler
+        try:
+            starts_at = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M') if starts_at_raw else None
+        except Exception:
+            flash("Başlangıç tarihi formatı geçersiz (YYYY-MM-DD HH:MM).", "danger")
+            return redirect(url_for('admin_campaign_new'))
+
+        try:
+            ends_at = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M') if ends_at_raw else None
+        except Exception:
+            flash("Bitiş tarihi formatı geçersiz (YYYY-MM-DD HH:MM).", "danger")
+            return redirect(url_for('admin_campaign_new'))
+
+        campaign = Campaign(
+            title=title,
+            description=description,
+            image_url=image_url,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            restaurant_id=restaurant_id,
+            coupon_code=coupon_code,
+            external_link=external_link,
+            is_active=is_active,
+            created_by=user_id
+        )
+        campaign.ensure_slug()
+        db.session.add(campaign)
+        db.session.commit()
+        flash("Kampanya oluşturuldu.", "success")
+
+        # Restaurant-admin oluşturduysa yönetim paneline yönlendir
+        if is_rest_admin:
+            return redirect(url_for('restaurant_admin_campaigns'))
+        return redirect(url_for('admin_campaigns'))
+
+    return render_template('admin/campaign_new.html', restaurants=restaurants, is_admin=is_admin,
+                           is_rest_admin=is_rest_admin)
+
+# RESTAURANT-ADMIN: yeni kampanya oluşturma (sadece kendi restoranları için)
+@app.route('/restaurant-admin/campaigns/new', methods=['GET', 'POST'])
+def restaurant_admin_campaign_new():
+    # Yetki kontrolü
+    if not session.get('user_id') or session.get('role') != 'restaurant_admin':
+        flash("Bu alana erişim izniniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    # Restoran-admin yalnızca kendi restoranlarını görsün
+    restaurants = Restaurant.query.filter_by(owner_id=user_id).all()
+    if not restaurants:
+        flash("Herhangi bir restorana sahip değilsiniz.", "danger")
+        return redirect(url_for('restaurant_admin_dashboard'))
+
+    if request.method == 'POST':
+        title = (request.form.get('title') or '').strip()
+        description = request.form.get('description') or ''
+        image_url = request.form.get('image_url') or ''
+        starts_at_raw = request.form.get('starts_at') or ''
+        ends_at_raw = request.form.get('ends_at') or ''
+        coupon_code = request.form.get('coupon_code') or None
+        external_link = request.form.get('external_link') or None
+        is_active = request.form.get('is_active') in ('1', 'true', 'on', 'yes')
+
+        # restaurant_id zorunlu ve restoran-adminin restoranlarından biri olmalı
+        restaurant_id = request.form.get('restaurant_id', type=int)
+        if not restaurant_id:
+            flash("Lütfen bir restoran seçin.", "danger")
+            return redirect(url_for('restaurant_admin_campaign_new'))
+        if restaurant_id not in [r.id for r in restaurants]:
+            flash("Seçilen restoran size ait değil.", "danger")
+            return redirect(url_for('restaurant_admin_campaign_new'))
+
+        # Tarih parse et (opsiyonel)
+        starts_at = None
+        ends_at = None
+        if starts_at_raw:
+            try:
+                starts_at = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M')
+            except Exception:
+                flash("Başlangıç tarihi formatı geçersiz (YYYY-MM-DD HH:MM).", "danger")
+                return redirect(url_for('restaurant_admin_campaign_new'))
+        if ends_at_raw:
+            try:
+                ends_at = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M')
+            except Exception:
+                flash("Bitiş tarihi formatı geçersiz (YYYY-MM-DD HH:MM).", "danger")
+                return redirect(url_for('restaurant_admin_campaign_new'))
+
+        # Oluştur
+        campaign = Campaign(
+            title=title,
+            description=description,
+            image_url=image_url,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            restaurant_id=restaurant_id,
+            coupon_code=coupon_code,
+            external_link=external_link,
+            is_active=is_active,
+            created_by=user_id
+        )
+        campaign.ensure_slug()
+        try:
+            db.session.add(campaign)
+            db.session.commit()
+            flash("Kampanya başarıyla oluşturuldu.", "success")
+            return redirect(url_for('restaurant_admin_campaigns'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.exception("restaurant_admin_campaign_new error: %s", e)
+            flash("Kampanya oluşturulurken hata oluştu.", "danger")
+            return redirect(url_for('restaurant_admin_campaign_new'))
+
+    # GET: formu render et
+    return render_template('restaurant_admin/campaign_new.html', restaurants=restaurants)
+
+@app.route('/admin/campaigns/<int:campaign_id>/edit', methods=['GET', 'POST'])
+def admin_campaign_edit(campaign_id):
+    """
+    - site-admin tüm kampanyaları düzenleyebilir.
+    - restaurant-admin sadece kendi restoranına ait kampanyayı düzenleyebilir.
+    """
+    if not session.get('user_id') or not (session.get('is_admin') or session.get('role') == 'restaurant_admin'):
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    campaign = Campaign.query.get_or_404(campaign_id)
+    user_id = session['user_id']
+    is_admin = bool(session.get('is_admin'))
+    is_rest_admin = session.get('role') == 'restaurant_admin'
+
+    # restaurant-admin constraints
+    if is_rest_admin:
+        # kampanya bir restorana ait değilse (global) düzenleyemez
+        if not campaign.restaurant_id:
+            flash("Global kampanyaları düzenleyemezsiniz.", "danger")
+            return redirect(url_for('restaurant_admin_campaigns'))
+        rest = Restaurant.query.get(campaign.restaurant_id)
+        if not rest or rest.owner_id != user_id:
+            flash("Bu kampanyayı düzenleme yetkiniz yok.", "danger")
+            return redirect(url_for('restaurant_admin_campaigns'))
+
+    restaurants = Restaurant.query.all() if is_admin else Restaurant.query.filter_by(owner_id=user_id).all()
+
+    if request.method == 'POST':
+        campaign.title = request.form.get('title') or campaign.title
+        campaign.description = request.form.get('description') or campaign.description
+        campaign.image_url = request.form.get('image_url') or campaign.image_url
+
+        starts_at_raw = request.form.get('starts_at') or ''
+        ends_at_raw = request.form.get('ends_at') or ''
+        try:
+            campaign.starts_at = datetime.strptime(starts_at_raw, '%Y-%m-%d %H:%M') if starts_at_raw else None
+            campaign.ends_at = datetime.strptime(ends_at_raw, '%Y-%m-%d %H:%M') if ends_at_raw else None
+        except Exception:
+            flash("Tarih formatı geçersiz.", "danger")
+            return redirect(url_for('admin_campaign_edit', campaign_id=campaign.id))
+
+        # restaurant-id değişikliği: restaurant-admin yalnızca kendi restoranına set edebilir
+        new_rest_id = request.form.get('restaurant_id', type=int) if request.form.get('restaurant_id') else None
+        if is_rest_admin:
+            # restaurant-admin için new_rest_id zorunlu ve kendi restoranı olmalı
+            if not new_rest_id:
+                flash("Restoran-adminler için restoran seçmek zorunludur.", "danger")
+                return redirect(url_for('admin_campaign_edit', campaign_id=campaign.id))
+            if new_rest_id not in [r.id for r in restaurants]:
+                flash("Seçilen restoran size ait değil.", "danger")
+                return redirect(url_for('admin_campaign_edit', campaign_id=campaign.id))
+        campaign.restaurant_id = new_rest_id
+
+        campaign.coupon_code = request.form.get('coupon_code') or campaign.coupon_code
+        campaign.external_link = request.form.get('external_link') or campaign.external_link
+        campaign.is_active = request.form.get('is_active') in ('1', 'true', 'on', 'yes')
+
+        campaign.ensure_slug()
+        db.session.commit()
+        flash("Kampanya güncellendi.", "success")
+
+        if is_rest_admin:
+            return redirect(url_for('restaurant_admin_campaigns'))
+        return redirect(url_for('admin_campaigns'))
+
+    return render_template('admin/campaign_edit.html', campaign=campaign, restaurants=restaurants,
+                           is_admin=is_admin, is_rest_admin=is_rest_admin)
+
+@app.route('/admin/campaigns/<int:campaign_id>/delete', methods=['POST'])
+def admin_campaign_delete(campaign_id):
+    """
+    - site-admin: tüm kampanyaları silebilir.
+    - restaurant-admin: sadece kendi restoranına ait kampanyayı silebilir.
+    """
+    if not session.get('user_id') or not (session.get('is_admin') or session.get('role') == 'restaurant_admin'):
+        flash("Yetkiniz yok.", "danger")
+        return redirect(url_for('login'))
+
+    campaign = Campaign.query.get_or_404(campaign_id)
+    is_admin = bool(session.get('is_admin'))
+    is_rest_admin = session.get('role') == 'restaurant_admin'
+    user_id = session['user_id']
+
+    if is_rest_admin:
+        if not campaign.restaurant_id:
+            flash("Global kampanyaları silemezsiniz.", "danger")
+            return redirect(url_for('restaurant_admin_campaigns'))
+        rest = Restaurant.query.get(campaign.restaurant_id)
+        if not rest or rest.owner_id != user_id:
+            flash("Bu kampanyayı silme yetkiniz yok.", "danger")
+            return redirect(url_for('restaurant_admin_campaigns'))
+
+    db.session.delete(campaign)
+    db.session.commit()
+    flash("Kampanya silindi.", "success")
+
+    if is_rest_admin:
+        return redirect(url_for('restaurant_admin_campaigns'))
+    return redirect(url_for('admin_campaigns'))
+
+# -- API endpoints --
+@app.route('/api/campaigns')
+def api_campaigns():
+    campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.starts_at.asc().nulls_last()).all()
+    items = []
+    for c in campaigns:
+        items.append({
+            'id': c.id,
+            'title': c.title,
+            'slug': c.slug,
+            'description': _safe_text(c.description)[:400],
+            'image_url': _abs_image(c.image_url),
+            'starts_at': c.starts_at.strftime('%Y-%m-%d %H:%M') if c.starts_at else None,
+            'ends_at': c.ends_at.strftime('%Y-%m-%d %H:%M') if c.ends_at else None,
+            'restaurant_id': c.restaurant_id,
+            'coupon_code': c.coupon_code,
+            'external_link': c.external_link
+        })
+    return jsonify(items)
+
+@app.route('/api/campaigns/<int:campaign_id>')
+def api_campaign_detail(campaign_id):
+    c = Campaign.query.get_or_404(campaign_id)
+    return jsonify({
+        'id': c.id,
+        'title': c.title,
+        'slug': c.slug,
+        'description': _safe_text(c.description),
+        'image_url': _abs_image(c.image_url),
+        'starts_at': c.starts_at.strftime('%Y-%m-%d %H:%M') if c.starts_at else None,
+        'ends_at': c.ends_at.strftime('%Y-%m-%d %H:%M') if c.ends_at else None,
+        'restaurant_id': c.restaurant_id,
+        'coupon_code': c.coupon_code,
+        'external_link': c.external_link
+    })
+
+def ensure_slug(self):
+    # create readable unique slug; fallback to id if collision (ensure committed to generate id)
+    if not self.slug and self.title:
+        base = slugify(self.title)[:200] if 'slugify' in globals() else self.title.lower().replace(' ', '-')[:200]
+        slug = base
+        i = 1
+        while Event.query.filter_by(slug=slug).first():
+            i += 1
+            slug = f"{base}-{i}"
+        self.slug = slug
+    # Context processor: navbar için yakında başlayan kampanyaları enjekte et
+
 
 class EventRSVP(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1008,6 +1506,7 @@ def edit_restaurant(id):
 # Replace existing restaurant_admin_dashboard view with this version
 from datetime import datetime
 
+# Update the restaurant_admin_dashboard view to include campaigns
 @app.route('/restaurant-admin/dashboard')
 def restaurant_admin_dashboard():
     if not session.get('user_id') or session.get('role') != 'restaurant_admin':
@@ -1038,12 +1537,20 @@ def restaurant_admin_dashboard():
         if c.created_at:
             c.created_at = to_turkey_time(c.created_at)
 
+    # --- NEW: fetch campaigns for this restaurant-admin's restaurants ---
+    campaigns = Campaign.query.filter(Campaign.restaurant_id.in_(restaurant_ids)).order_by(Campaign.created_at.desc()).all() if restaurant_ids else []
+
+    # --- Also fetch upcoming events for summary if already present in your code ---
+    events = Event.query.filter(Event.restaurant_id.in_(restaurant_ids)).order_by(Event.starts_at.asc()).all() if restaurant_ids else []
+
     return render_template('restaurant_admin/admin_dashboard.html',
                            restaurants=restaurants,
                            products=products,
                            comments=comments,
                            favorite_counts=favorite_counts,
-                           avg_rating=avg_rating)
+                           avg_rating=avg_rating,
+                           campaigns=campaigns,
+                           events=events)
 
 @app.route('/admin/delete-restaurant/<int:id>', methods=['POST'])
 def delete_restaurant(id):
@@ -1945,41 +2452,68 @@ def approve_application(app_id):
         return redirect(url_for("index"))
 
     application = RestaurantApplication.query.get_or_404(app_id)
-    application.status = "approved"
 
-    user = User.query.get(application.user_id)
-    user.role = "restaurant_admin"
+    try:
+        # 1) İşaretle onaylı
+        application.status = "approved"
 
-    # --- GÜNCELLENEN KISIM ---
-    restaurant = Restaurant(
-        name=application.name,
-        address=application.address,
-        city=application.city,
-        category=application.category,
-        description=application.description,
-        owner_id=user.id,
-        latitude=application.latitude,
-        longitude=application.longitude,
-        phone=application.phone,
-        contact_email=application.contact_email
-    )
-    db.session.add(restaurant)
-    db.session.commit()
+        # 2) Kullanıcıyı restoran admin yap
+        user = User.query.get(application.user_id)
+        if user:
+            user.role = "restaurant_admin"
 
-    # Ürünleri ekle
-    for ap in application.products:
-        product = Product(
-            restaurant_id=restaurant.id,
-            name=ap.name,
-            category=ap.category,
-            description=ap.description
+        # 3) Yeni Restaurant oluştur ve cross_contamination -> celiac_friendly aktar
+        restaurant = Restaurant(
+            name=application.name,
+            address=application.address,
+            city=application.city,
+            category=application.category,
+            description=application.description,
+            owner_id=user.id if user else None,
+            latitude=application.latitude,
+            longitude=application.longitude,
+            phone=application.phone,
+            contact_email=application.contact_email,
+            celiac_friendly = bool(application.cross_contamination)   # <-- kritik atama
         )
-        db.session.add(product)
+        db.session.add(restaurant)
+        db.session.commit()
 
-    db.session.commit()
-    flash("Başvuru onaylandı, restoran oluşturuldu.", "success")
+        # 4) Eğer uygulama tablosunda restaurant_id alanı varsa, eşitle
+        # (DB şemanızda varsa; yoksa bu satır hata vermez çünkü SQLAlchemy modelinizde field olmayabilir)
+        try:
+            # bazı migration'larda application.restaurant_id olabilir
+            if hasattr(application, 'restaurant_id'):
+                application.restaurant_id = restaurant.id
+        except Exception:
+            pass
+
+        # 5) Uygulamadaki celiac_friendly alanını sync et (isteğe bağlı, faydalı)
+        application.celiac_friendly = bool(application.cross_contamination)
+        db.session.add(application)
+        db.session.commit()
+
+        # 6) Ürünleri kopyala
+        for ap in application.products:
+            product = Product(
+                restaurant_id=restaurant.id,
+                name=ap.name,
+                category=ap.category,
+                description=ap.description
+            )
+            db.session.add(product)
+        db.session.commit()
+
+        current_app.logger.info("Approved app id=%s cross=%s -> restaurant id=%s celiac=%s",
+                                application.id, application.cross_contamination, restaurant.id, restaurant.celiac_friendly)
+
+        flash("Başvuru onaylandı, restoran oluşturuldu.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("approve_application error: %s", e)
+        flash("Onay sırasında veritabanı hatası oluştu.", "danger")
+
     return redirect(url_for("admin_applications"))
-
 @app.route("/admin/applications/<int:app_id>/reject", methods=["POST"])
 def reject_application(app_id):
     if not session.get("is_admin"):

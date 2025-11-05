@@ -24,8 +24,8 @@
     <nav style="background-color: #F2E8D5;" class="py-6 px-8 shadow-md">
       <div class="container mx-auto flex justify-start space-x-4 items-center">
         <a href="/" class="flex items-center">
-          <img src="/static/GlutasyonLogo_Orj.png" alt="Glutasyon Logo"
-               class="h-24 object-contain mr-6" style="width: auto;">
+            <img src="/static/GlutasyonLogo_Orj.png" alt="Glutasyon Logo"
+                class="h-24 object-contain mr-6" style="width: auto;">
         </a>
 
         <div class="flex items-center justify-between w-full space-x-8 py-4 px-6 rounded-lg">
@@ -96,6 +96,51 @@
               </div>
             </div>
 
+            <!-- Kampanyalar Dropdown -->
+            <div class="relative inline-block text-left">
+              <button id="campaignsButton" class="px-3 py-2 rounded hover:bg-gray-100 transition text-sm font-medium" aria-haspopup="true" aria-expanded="false">
+                Kampanyalar
+                <svg class="inline-block ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+
+              <div id="campaignsDropdown" class="hidden origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                <div class="py-2">
+                  {% if upcoming_campaigns %}
+                    {% for c in upcoming_campaigns %}
+                      <a href="{{ url_for('campaign_detail', slug=c.slug) }}" class="block px-4 py-3 hover:bg-gray-50">
+                        <div class="text-sm font-semibold text-green-700 truncate">{{ c.title }}</div>
+                        <div class="text-xs text-gray-500">
+                          {% if c.starts_at %}
+                            {% if c.starts_at is string %}
+                              {{ c.starts_at }}
+                            {% else %}
+                              {{ c.starts_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% endif %}
+                          {% endif %}
+                          {% if c.restaurant %}
+                            • {{ c.restaurant.name }}
+                          {% endif %}
+                        </div>
+                      </a>
+                      {% if not loop.last %}<div class="border-t my-0.5"></div>{% endif %}
+                    {% endfor %}
+                    <div class="px-4 py-2">
+                      <a href="{{ url_for('campaigns') }}" class="text-sm text-blue-600 hover:underline">Tüm kampanyaları gör</a>
+                      {% if session.get('role') == 'restaurant_admin' %}
+                        <span class="mx-2">•</span>
+                        <a href="{{ url_for('restaurant_admin_campaigns') }}" class="text-sm text-blue-600 hover:underline">Kampanyalarım</a>
+                      {% elif session.get('is_admin') %}
+                        <span class="mx-2">•</span>
+                        <a href="{{ url_for('admin_campaigns') }}" class="text-sm text-blue-600 hover:underline">Yönetim Kampanyaları</a>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <div class="px-4 py-3 text-sm text-gray-500">Aktif kampanya yok.</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
             <!-- 👤 Kullanıcı Sağ Bölüm -->
             <div class="flex items-center gap-4">
               {% if session.get('user_id') %}
@@ -144,17 +189,36 @@
   <script>
     // Basit dropdown toggle
     document.addEventListener('DOMContentLoaded', function() {
-      var btn = document.getElementById('eventsButton');
-      var dd = document.getElementById('eventsDropdown');
-      if (btn && dd) {
-        btn.addEventListener('click', function(e) {
+      // Events dropdown
+      var eventsBtn = document.getElementById('eventsButton');
+      var eventsDd = document.getElementById('eventsDropdown');
+      if (eventsBtn && eventsDd) {
+        eventsBtn.addEventListener('click', function(e) {
           e.stopPropagation();
-          dd.classList.toggle('hidden');
-        });
-        document.addEventListener('click', function() {
-          if (!dd.classList.contains('hidden')) dd.classList.add('hidden');
+          eventsDd.classList.toggle('hidden');
+          // close campaigns if open
+          var camp = document.getElementById('campaignsDropdown');
+          if (camp && !camp.classList.contains('hidden')) camp.classList.add('hidden');
         });
       }
+
+      // Campaigns dropdown
+      var campsBtn = document.getElementById('campaignsButton');
+      var campsDd = document.getElementById('campaignsDropdown');
+      if (campsBtn && campsDd) {
+        campsBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          campsDd.classList.toggle('hidden');
+          // close events if open
+          var ev = document.getElementById('eventsDropdown');
+          if (ev && !ev.classList.contains('hidden')) ev.classList.add('hidden');
+        });
+      }
+
+      document.addEventListener('click', function() {
+        if (eventsDd && !eventsDd.classList.contains('hidden')) eventsDd.classList.add('hidden');
+        if (campsDd && !campsDd.classList.contains('hidden')) campsDd.classList.add('hidden');
+      });
     });
   </script>
 </body>

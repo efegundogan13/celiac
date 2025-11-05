@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Yeni Kampanya — Restoran Paneli{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white p-6 rounded shadow">
+  <h1 class="text-2xl font-bold mb-4">Yeni Kampanya Oluştur</h1>
+
+  <form method="POST" action="{{ url_for('restaurant_admin_campaign_new') }}">
+    <div class="mb-3">
+      <label class="block font-medium">Başlık</label>
+      <input name="title" class="w-full border p-2 rounded" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="block font-medium">Açıklama</label>
+      <textarea name="description" class="w-full border p-2 rounded" rows="4"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="block font-medium">Görsel URL (opsiyonel)</label>
+      <input name="image_url" class="w-full border p-2 rounded" placeholder="https://...">
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-3">
+      <div>
+        <label class="block font-medium">Başlangıç (YYYY-MM-DD HH:MM)</label>
+        <input name="starts_at" class="w-full border p-2 rounded" placeholder="2025-11-05 10:00">
+      </div>
+      <div>
+        <label class="block font-medium">Bitiş (YYYY-MM-DD HH:MM)</label>
+        <input name="ends_at" class="w-full border p-2 rounded" placeholder="2025-11-12 23:59">
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="block font-medium">Restoran (Zorunlu)</label>
+      <select name="restaurant_id" class="w-full border p-2 rounded" required>
+        <option value="">-- Restoran seçin --</option>
+        {% for r in restaurants %}
+          <option value="{{ r.id }}">{{ r.name }} — {{ r.city }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-500 mt-1">Sadece kendi restoran(lar)ınız listelenir.</p>
+    </div>
+
+    <div class="mb-3">
+      <label class="block font-medium">Kupon Kodu (opsiyonel)</label>
+      <input name="coupon_code" class="w-full border p-2 rounded">
+    </div>
+
+    <div class="mb-3">
+      <label class="block font-medium">Dış Bağlantı (opsiyonel)</label>
+      <input name="external_link" class="w-full border p-2 rounded" placeholder="https://...">
+    </div>
+
+    <div class="mb-3">
+      <label class="inline-flex items-center">
+        <input type="checkbox" name="is_active" value="1" checked class="mr-2"> Aktif
+      </label>
+    </div>
+
+    <div class="flex items-center justify-between mt-4">
+      <a href="{{ url_for('restaurant_admin_campaigns') }}" class="text-sm text-gray-600 hover:underline">İptal</a>
+      <button class="bg-yellow-600 text-white px-4 py-2 rounded">Oluştur</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

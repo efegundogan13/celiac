@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Kampanyalarım{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold text-green-700">Kampanyalarım</h1>
+    <a href="{{ url_for('restaurant_admin_campaign_new') }}" class="bg-yellow-600 text-white px-3 py-2 rounded hover:bg-yellow-700">+ Yeni Kampanya</a>
+  </div>
+
+  {% if campaigns %}
+    <ul class="space-y-3">
+      {% for c in campaigns %}
+        <li class="p-4 border rounded flex justify-between items-start">
+          <div class="flex items-start gap-4">
+            {% if c.image_url %}
+              <img src="{{ c.image_url }}" alt="{{ c.title }}" class="w-24 h-16 object-cover rounded">
+            {% else %}
+              <div class="w-24 h-16 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">No Image</div>
+            {% endif %}
+            <div>
+              <a href="{{ url_for('campaign_detail', slug=c.slug) }}" class="font-semibold text-green-700">{{ c.title }}</a>
+              <div class="text-sm text-gray-600 mt-1">
+                {% if c.starts_at %}
+                  {% if c.starts_at is string %}{{ c.starts_at }}{% else %}{{ c.starts_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+                {% endif %}
+                {% if c.ends_at %} — {% if c.ends_at is string %}{{ c.ends_at }}{% else %}{{ c.ends_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}{% endif %}
+              </div>
+              <div class="text-xs text-gray-500 mt-1">Kod: {{ c.coupon_code if c.coupon_code else '-' }}</div>
+            </div>
+          </div>
+
+          <div class="flex flex-col items-end gap-2">
+            <div>
+              <a href="{{ url_for('admin_campaign_edit', campaign_id=c.id) }}" class="text-blue-600 hover:underline text-sm">Düzenle</a>
+              <form action="{{ url_for('admin_campaign_delete', campaign_id=c.id) }}" method="POST" onsubmit="return confirm('Kampanyayı silmek istediğinize emin misiniz?');" class="inline">
+                <button type="submit" class="text-red-600 hover:underline text-sm ml-2">Sil</button>
+              </form>
+            </div>
+            <div class="text-xs text-gray-500">{{ c.external_link if c.external_link else '-' }}</div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-gray-600">Henüz kampanya yok. Yeni kampanya eklemek için sağ üstteki butonu kullanın.</p>
+  {% endif %}
+</div>
+{% endblock %}

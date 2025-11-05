@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Kampanyalar{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-green-700">Kampanyalar</h1>
+  </div>
+
+  {% if campaigns %}
+    <ul class="space-y-3">
+      {% for c in campaigns %}
+        <li class="p-4 border rounded flex items-start gap-4">
+          <div class="w-28 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+            {% if c.image_url %}
+              <img src="{{ c.image_url }}" alt="{{ c.title }}" class="w-full h-full object-cover">
+            {% else %}
+              <div class="w-full h-full flex items-center justify-center text-xs text-gray-500">No Image</div>
+            {% endif %}
+          </div>
+
+          <div class="flex-1">
+            <a href="{{ url_for('campaign_detail', slug=c.slug) }}" class="text-lg font-semibold text-green-700">{{ c.title }}</a>
+            <div class="text-sm text-gray-500 mt-1">
+              {% if c.starts_at %}{{ c.starts_at if c.starts_at is string else c.starts_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+              {% if c.ends_at %} — {{ c.ends_at if c.ends_at is string else c.ends_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+            </div>
+            <div class="text-xs text-gray-500 mt-2">Kod: {{ c.coupon_code or '-' }}</div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-gray-600">Henüz görüntülenecek kampanya yok.</p>
+  {% endif %}
+</div>
+{% endblock %}
